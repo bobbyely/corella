@@ -53,4 +53,14 @@ describe("titleFromMessage", () => {
     assert.equal(titleFromMessage("   \n\n  "), null);
     assert.equal(titleFromMessage("```\nnpm test\n```"), null);
   });
+
+  it("leaves the title for the next message when this one is only a command", () => {
+    assert.equal(titleFromMessage("/effort high"), null);
+    assert.equal(titleFromMessage("  /compact  "), null);
+  });
+
+  it("still names the chat from a request that follows a command, or a path", () => {
+    assert.equal(titleFromMessage("/effort high\nfix the parser"), "/effort high");
+    assert.equal(titleFromMessage("/home/me/app will not build"), "/home/me/app will not build");
+  });
 });

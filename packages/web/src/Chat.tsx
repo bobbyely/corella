@@ -369,6 +369,14 @@ const Message = memo(function Message({
           )}
         </div>
       );
+    case "command":
+      return (
+        <div className="compaction">
+          <span className="compaction-rule" />
+          <code>{row.text}</code>
+          <span className="compaction-rule" />
+        </div>
+      );
     case "agent":
       return (
         <div className="msg msg-agent">

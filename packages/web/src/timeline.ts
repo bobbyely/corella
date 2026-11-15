@@ -8,7 +8,7 @@ import type {
   PermissionOption,
   ProviderRef,
 } from "@kirochrome/shared";
-import { updateCategory } from "@kirochrome/shared";
+import { isSlashCommand, updateCategory } from "@kirochrome/shared";
 
 /**
  * Folds the event log into renderable rows.
@@ -22,6 +22,7 @@ import { updateCategory } from "@kirochrome/shared";
  */
 export type Row =
   | { kind: "user"; seq: number; text: string; attachments: Attachment[]; files: FileMention[] }
+  | { kind: "command"; seq: number; text: string }
   | { kind: "agent"; seq: number; text: string }
   | { kind: "thought"; seq: number; text: string }
   | { kind: "tool"; seq: number; toolCallId: string; title: string; toolKind: string; status: string; details: unknown[] }
@@ -153,6 +154,12 @@ export function buildRows(events: KcEvent[]): Row[] {
   for (const event of events) {
     switch (event.type) {
       case "user_message":
+        // A bare command (`/effort high`) is a setting, not something said: a
+        // small line, not a bubble. With an image or file it is a request.
+        if (isSlashCommand(event.text) && !event.attachments?.length && !event.files?.length) {
+          rows.push({ kind: "command", seq: event.seq, text: event.text.trim() });
+          break;
+        }
         rows.push({
           kind: "user",
           seq: event.seq,

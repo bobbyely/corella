@@ -125,7 +125,7 @@ Breaking one of these is a design regression, not a style nit.
 | `processLedger.ts` | PID ledger and startup reaping |
 | `fs.ts` | `fs/read_text_file`, `fs/write_text_file` — for the agent, unsandboxed |
 | `files.ts` | The Files pane's reader — for the browser, confined to the conversation's roots |
-| `title.ts` | Names a conversation from its first message, when the agent sends none |
+| `title.ts` | Names a conversation from its first real message (not a bare slash command), when the agent sends none |
 | `export.ts`, `resolve.ts`, `ringBuffer.ts`, `paths.ts`, `trace.ts` | Markdown export, `PATH` resolution, stderr buffer, per-OS data dir, frame trace |
 
 **`packages/shared`** — `events.ts` (event payloads, usage derivation),

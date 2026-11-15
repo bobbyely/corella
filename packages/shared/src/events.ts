@@ -154,6 +154,18 @@ const STATE_UPDATES = new Set([
 
 export type UpdateCategory = "transcript" | "state";
 
+/**
+ * A message that is only a slash command, such as `/effort high`.
+ *
+ * Settings, not conversation: it neither names the chat nor shows as a bubble.
+ * One line only, so a command followed by a real request still counts as a
+ * request; and the name must end in a space or the end, so a path such as
+ * `/home/me` is not mistaken for one.
+ */
+export function isSlashCommand(text: string): boolean {
+  return /^\/[\w-]+(?:[ \t][^\n]*)?$/.test(text.trim());
+}
+
 /** Unknown updates default to `transcript`, so something new is noticed rather than hidden. */
 export function updateCategory(sessionUpdate: string | undefined): UpdateCategory {
   return sessionUpdate && STATE_UPDATES.has(sessionUpdate) ? "state" : "transcript";

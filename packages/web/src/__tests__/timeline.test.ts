@@ -219,4 +219,15 @@ describe("an adopted conversation", () => {
     assert.deepEqual(rows.map((r) => r.kind), ["agent", "adopted", "user"]);
     assert.equal(rows[1]!.kind === "adopted" && rows[1]!.providerName, "Mock");
   });
+
+  it("shows a bare command as a small line, and a command with more as a message", () => {
+    const rows = buildRows([
+      ev({ type: "user_message", text: "/effort high" } as never, 1),
+      ev({ type: "user_message", text: "/effort high\nthen fix the parser" } as never, 2),
+      ev({ type: "user_message", text: "/home/me is full" } as never, 3),
+      ev({ type: "user_message", text: "/review", attachments: [{ id: "a", mime: "image/png" }] } as never, 4),
+    ]);
+    assert.deepEqual(rows.map((r) => r.kind), ["command", "user", "user", "user"]);
+    assert.equal(rows[0]!.kind === "command" && rows[0]!.text, "/effort high");
+  });
 });

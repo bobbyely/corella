@@ -275,6 +275,13 @@ All of these were real races, found the hard way.
 
 ## Browser
 
+- **The opening command is a message, so it named every chat.** A New chat
+  opening of `/effort high` is sent as the first turn, and the title came from
+  the first turn, so every conversation in the sidebar was called "/effort
+  high". A message that is only a slash command (`isSlashCommand` in
+  `shared/src/events.ts`) now neither names the chat nor shows as a bubble:
+  the next real message names it, and the command is a small line in the
+  transcript. It stays in the log as it was sent.
 - **An omitted `oldText` is not an empty one.** ACP's diff `oldText` is
   optional; coercing absence to `""` made the Changes pane label every write
   whose before-text the agent left out as a *new* file. Absent stays `null`:

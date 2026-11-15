@@ -1,3 +1,5 @@
+import { isSlashCommand } from "@kirochrome/shared";
+
 /** Longest a derived title may be before it is cut short. */
 const MAX_LENGTH = 60;
 
@@ -21,9 +23,12 @@ const FILLER =
  * it. Trimming the noise off the first line gets most of the way for nothing.
  *
  * Returns null when there is nothing usable, so the caller can leave the title
- * unset rather than storing an empty string.
+ * unset rather than storing an empty string. A message that is only a slash
+ * command is not usable: an opening `/effort high` would otherwise name every
+ * chat the same, so the next real message names it instead.
  */
 export function titleFromMessage(text: string): string | null {
+  if (isSlashCommand(text)) return null;
   const line = firstProseLine(text);
   if (!line) return null;
 
