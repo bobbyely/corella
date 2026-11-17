@@ -170,6 +170,13 @@ export function Chat({
     if (session?.live) onStarted?.();
   }, [session?.live, onStarted]);
 
+  // Resume replays the agent's whole history before the session goes live, which
+  // can take a while on a long conversation; without this the click looks ignored.
+  const [resuming, setResuming] = useState(false);
+  useEffect(() => {
+    setResuming(false);
+  }, [sessionId, session?.live, error]);
+
   const busy = session?.busy ?? false;
   // A session read back from disk has no agent attached until it is resumed.
   const readOnly = session !== null && !session.live;
@@ -277,8 +284,17 @@ export function Chat({
             <p className="muted">
               This conversation was restored from disk. Re-attach an agent to continue it.
             </p>
-            <button className="primary" onClick={() => sessionId && resumeSession(sessionId)}>
-              Resume conversation
+            <button
+              className="primary"
+              disabled={resuming}
+              aria-busy={resuming}
+              onClick={() => {
+                if (!sessionId) return;
+                setResuming(true);
+                resumeSession(sessionId);
+              }}
+            >
+              {resuming ? "Resuming… loading history" : "Resume conversation"}
             </button>
           </div>
         ) : (
