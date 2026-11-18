@@ -40,3 +40,22 @@ describe("outputByteLimit", () => {
     reg.releaseAll();
   });
 });
+
+describe("command lines", () => {
+  it("runs a whole command line sent with no args, the way Kiro's sub-agents send it", async () => {
+    const reg = new TerminalRegistry();
+    const t = reg.create({ command: "echo one two | tr a-z A-Z", args: [] });
+    const exit = await reg.waitForExit(t.terminalId);
+    assert.equal(exit.exitCode, 0);
+    assert.equal(reg.output(t.terminalId).output.trim(), "ONE TWO");
+    reg.releaseAll();
+  });
+
+  it("passes explicit args through untouched, with no shell to interpret them", async () => {
+    const reg = new TerminalRegistry();
+    const t = reg.create({ command: "echo", args: ["$HOME", "a|b"] });
+    await reg.waitForExit(t.terminalId);
+    assert.equal(reg.output(t.terminalId).output.trim(), "$HOME a|b");
+    reg.releaseAll();
+  });
+});

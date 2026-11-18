@@ -58,9 +58,15 @@ export class TerminalRegistry {
     const env = { ...process.env };
     for (const entry of params.env ?? []) env[entry.name] = entry.value;
 
-    const child = spawn(params.command, params.args ?? [], {
+    const args = params.args ?? [];
+    const child = spawn(params.command, args, {
       cwd: params.cwd ?? process.cwd(),
       env,
+      // Kiro's sub-agents send a whole command line (`git diff --stat a...b`,
+      // pipes and all) in `command` with no `args`. Spawned directly, that is
+      // looked up as one executable name and fails with ENOENT. With no args,
+      // hand it to the shell; with args, keep the exact argv and no shell.
+      shell: args.length === 0,
       stdio: ["ignore", "pipe", "pipe"],
       // Own process group so kill() can take down the whole tree. Killing only
       // the direct child leaves grandchildren holding the pipes open, which is
