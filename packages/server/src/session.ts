@@ -729,13 +729,22 @@ export class Session {
    * Sets advertised options to the given values, skipping any the agent no
    * longer offers or already has. Chosen up front from the setup check's
    * list, which can lag what the agent offers today — hence the skipping.
+   *
+   * Setting one option can make the agent offer another: Kiro only advertises
+   * `effortLevel` once a model that supports it is chosen. So the list is
+   * re-read after each set, and each option is tried at most once.
    */
   private async applyValues(values: Record<string, string | boolean>): Promise<void> {
-    for (const option of this.configOptions) {
-      const wanted = values[option.id];
-      if (wanted === undefined || wanted === option.currentValue) continue;
-      if (option.type === "select" && !option.options?.some((o) => o.value === wanted)) continue;
-      await this.setConfigOption(option.id, wanted, { remember: false });
+    const tried = new Set<string>();
+    const next = () =>
+      this.configOptions.find((option) => {
+        const wanted = values[option.id];
+        if (tried.has(option.id) || wanted === undefined || wanted === option.currentValue) return false;
+        return option.type !== "select" || option.options?.some((o) => o.value === wanted);
+      });
+    for (let option = next(); option; option = next()) {
+      tried.add(option.id);
+      await this.setConfigOption(option.id, values[option.id]!, { remember: false });
     }
   }
 
@@ -865,6 +874,16 @@ export class Session {
     // session as context changes.
     if (t.sessionUpdate === "available_commands_update") {
       this.setCommands((update as { availableCommands?: unknown }).availableCommands);
+    }
+
+    // The agent revises its settings as they change — a new model can add or
+    // drop options. Merge by id so options from the legacy dialect survive.
+    if (t.sessionUpdate === "config_option_update") {
+      const revised = normaliseConfigOptions(update as Record<string, unknown>);
+      const byId = new Map(this.configOptions.map((o) => [o.id, o]));
+      for (const option of revised) byId.set(option.id, option);
+      this.configOptions = [...byId.values()];
+      this.notifyState();
     }
 
     // Agents name their own sessions. Prefer that over our first-message

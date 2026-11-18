@@ -95,9 +95,25 @@ const app = agent({ name: "mock-agent" })
         .map((v) => ({ value: v, label: v === "high" ? "high  [active]" : v.toUpperCase(), current: v === "medium" })),
     };
   })
-  .onRequest("session/set_config_option", ({ params }) => ({
-    configOptions: [{ id: params.configId, currentValue: params.value }],
-  }))
+  .onRequest("session/set_config_option", async ({ params, client }) => {
+    // Like Kiro, the small model brings an effort setting the large one lacks,
+    // announced as a revised list.
+    if (params.configId === "model" && params.value === "mock-small") {
+      await client.notify("session/update", {
+        sessionId: params.sessionId,
+        update: {
+          sessionUpdate: "config_option_update",
+          configOptions: [
+            {
+              id: "effortLevel", name: "Effort", type: "select", currentValue: "high",
+              options: [{ value: "medium", name: "Medium" }, { value: "high", name: "High" }],
+            },
+          ],
+        },
+      });
+    }
+    return { configOptions: [{ id: params.configId, currentValue: params.value }] };
+  })
   .onRequest("session/set_mode", () => ({}))
   .onRequest("session/load", async ({ params, client }) => {
     const notify = (update) =>

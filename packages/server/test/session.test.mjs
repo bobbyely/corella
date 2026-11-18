@@ -521,6 +521,20 @@ describe("provider defaults", () => {
     assert.equal(fallback.currentValue, "mock-large", "falls back to the agent's own default");
     third.close();
   });
+
+  it("apply an option the agent only offers after another is set", async () => {
+    store.setProviderDefault("mock", "model", "mock-small");
+    store.setProviderDefault("mock", "effortLevel", "medium");
+    try {
+      const session = await sessions.open(provider, "/tmp");
+      const effort = session.summary().configOptions.find((o) => o.id === "effortLevel");
+      assert.equal(effort?.currentValue, "medium", "effort appears with the small model and must be applied");
+      session.close();
+    } finally {
+      // Later suites share this store; leave new sessions on the agent's own model.
+      store.setProviderDefault("mock", "model", "mock-large");
+    }
+  });
 });
 
 describe("adopting a conversation the agent already has", () => {
