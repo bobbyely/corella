@@ -25,7 +25,7 @@ export async function readTextFile(params: {
   try {
     content = await readFile(params.path, "utf8");
   } catch (err) {
-    throw fsError(`Could not read ${params.path}`, err);
+    throw fsError("read", err);
   }
 
   // `line` is 1-based and both are optional; slicing only when asked keeps the
@@ -45,7 +45,7 @@ export async function writeTextFile(params: { path: string; content: string }): 
     await mkdir(dirname(params.path), { recursive: true });
     await writeFile(params.path, params.content, "utf8");
   } catch (err) {
-    throw fsError(`Could not write ${params.path}`, err);
+    throw fsError("write", err);
   }
 }
 
@@ -55,7 +55,21 @@ function requireAbsolute(path: string): void {
   }
 }
 
-function fsError(message: string, err: unknown): RequestError {
+const FS_CAUSES: Record<string, string> = {
+  ENOENT: "no such file or directory",
+  EACCES: "permission denied",
+  EISDIR: "the path is a directory",
+  ENOTDIR: "a parent in the path is not a directory",
+};
+
+/**
+ * Agents show only the error message, so the cause must be in it — a bare
+ * "Internal error" leaves the agent unable to correct a wrong path. The path
+ * itself is left out: the agent already has it, and it would put the user's
+ * home directory into every agent log and transcript.
+ */
+function fsError(action: "read" | "write", err: unknown): RequestError {
   const code = (err as NodeJS.ErrnoException)?.code;
-  return RequestError.internalError({ reason: `${message}: ${code ?? String(err)}` });
+  const cause = code ? `${FS_CAUSES[code] ?? "failed"} (${code})` : "failed";
+  return RequestError.internalError({ code: code ?? null }, `could not ${action} file: ${cause}`);
 }

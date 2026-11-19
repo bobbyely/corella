@@ -34,6 +34,18 @@ describe("fs/read_text_file", () => {
   it("reports a missing file as an error, not empty content", async () => {
     await assert.rejects(() => readTextFile({ path: join(dir, "nope.txt") }));
   });
+
+  it("names the cause in the message, which is all the agent shows, but not the path", async () => {
+    const path = join(dir, "nope.txt");
+    await assert.rejects(
+      () => readTextFile({ path }),
+      (err) => {
+        assert.match(err.message, /no such file or directory \(ENOENT\)/);
+        assert.ok(!JSON.stringify({ m: err.message, d: err.data }).includes(dir), "no path in message or data");
+        return true;
+      },
+    );
+  });
 });
 
 describe("fs/write_text_file", () => {
