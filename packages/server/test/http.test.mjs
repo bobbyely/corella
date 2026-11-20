@@ -103,3 +103,17 @@ describe("the login token", () => {
     assert.equal(await open(cookie()), true);
   });
 });
+
+describe("what a logged-in browser is sent", () => {
+  it("forbids framing the app, so a hidden frame cannot click its prompts", async () => {
+    const res = await fetch(`${base}/`, { headers: cookie() });
+    assert.equal(res.headers.get("content-security-policy"), "frame-ancestors 'none'");
+    assert.equal(res.headers.get("x-frame-options"), "DENY");
+  });
+
+  it("lists an agent's own sessions only on POST, since listing spawns it", async () => {
+    // A GET can come from an <img> on any site; it must not start an agent.
+    const get = await fetch(`${base}/api/providers/p/sessions`, { headers: cookie() });
+    assert.equal(get.status, 404);
+  });
+});

@@ -215,6 +215,11 @@ All of these were real races, found the hard way.
   provider's command, then `POST` its check, and it runs as the user. Every
   route and the socket now need the token (`auth.ts`). A new route goes behind
   the same gate by default; do not add one before it.
+- **Every page we serve says `frame-ancestors 'none'` and `X-Frame-Options:
+  DENY`.** Without them a page could load us in a nearly invisible frame over
+  its own buttons, and two clicks answered a permission prompt "Always allow".
+- **A route that spawns a process is never a GET.** Listing an agent's own
+  sessions starts the agent, and a GET can be fired by an `<img>` on any site.
 
 - **Check `Host`, not only `Origin`.** Same-origin GETs send no `Origin`, so a
   page on a DNS-rebound name that resolves to `127.0.0.1` passed the check by

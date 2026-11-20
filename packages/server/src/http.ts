@@ -240,13 +240,14 @@ async function handleApi(
     return;
   }
 
-  // GET /api/providers/:id/sessions — conversations the *agent* is holding.
+  // POST /api/providers/:id/sessions — conversations the *agent* is holding.
   //
   // HTTP rather than the socket: this runs before any conversation exists, so
   // it is a request/response with nothing to stream, and it needs its own
-  // short-lived probe agent — exactly the shape of the check below.
+  // short-lived probe agent — exactly the shape of the check below. POST
+  // because it spawns: a GET can be fired by an <img> on any site.
   const listMatch = /^\/api\/providers\/([^/]+)\/sessions$/.exec(url.pathname);
-  if (listMatch && req.method === "GET") {
+  if (listMatch && req.method === "POST") {
     const id = decodeURIComponent(listMatch[1]!);
     const provider = config.providers.find((p) => p.id === id);
     if (!provider) {
@@ -458,7 +459,13 @@ function serveStatic(res: ServerResponse, root: string, pathname: string): void 
   if (!file.startsWith(root) || !existsSync(file) || statSync(file).isDirectory()) {
     file = join(root, "index.html"); // SPA fallback
   }
-  res.writeHead(200, { "content-type": MIME[extname(file)] ?? "application/octet-stream" });
+  res.writeHead(200, {
+    "content-type": MIME[extname(file)] ?? "application/octet-stream",
+    // Never inside another page's frame: a nearly invisible one over a decoy
+    // button took two clicks to answer a permission prompt "Always allow".
+    "content-security-policy": "frame-ancestors 'none'",
+    "x-frame-options": "DENY",
+  });
   // A stream with no error listener throws on the event loop, and that is
   // fatal for the whole process — every running turn included. A file that
   // vanishes between the existsSync above and the read is enough.

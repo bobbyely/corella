@@ -47,7 +47,7 @@ export const updateProvider = (id: string, patch: { command?: string; args?: str
  * on every visit to the new-chat page.
  */
 export const fetchAgentSessions = (id: string) =>
-  request<AgentSessionsResponse>(`/api/providers/${encodeURIComponent(id)}/sessions`);
+  request<AgentSessionsResponse>(`/api/providers/${encodeURIComponent(id)}/sessions`, { method: "POST" });
 
 export const runCheck = (id: string) =>
   request<CheckResponse>(`/api/providers/${encodeURIComponent(id)}/check`, { method: "POST" });
