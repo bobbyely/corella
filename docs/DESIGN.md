@@ -299,6 +299,13 @@ The visual system is "On Air" (approved comps and reasoning in
   always names a real block; no theme is written twice. Every other colour in
   the stylesheet is derived from those tokens. Adding a theme is a block there
   and a line in `THEMES`.
+- **Fill and ink are separate tokens.** A colour read as words gets its own
+  token where the fill colour is too light (`--onair` for the lamp,
+  `--onair-text` for teal words), and each theme has its own code colours.
+  `contrast.test.ts` reads the blocks and fails any text pair under 4.5:1, so
+  the rule holds for a theme added later. Words are never faded with opacity.
+- **Sizes that hold text are in rem,** including the running sheet's time
+  column and gutter, so a reader's larger browser text widens them too.
 - **Fonts are self-hosted** (Archivo and Red Hat Mono, both OFL, licences in
   `packages/web/src/fonts/`). Corella is local-first: the page fetches nothing
   from anywhere but its own server.
@@ -320,7 +327,19 @@ The visual system is "On Air" (approved comps and reasoning in
   row scrolls sideways, with the folder menu as a sheet at the foot (a menu
   inside a scrolling row would be clipped). Main controls are 44px on narrow
   or touch screens. Pure CSS plus one boolean in `App`; nothing about a chat
-  changes with the width.
+  changes with the width. Open, the list acts as a dialog: focus moves in,
+  the page behind is `inert`, and Escape gives focus back to the back key.
+
+## App-wide settings
+
+Switches that should be the same in every tab live in the store's `settings`
+table (one row per key, a JSON value), behind `GET` and `PATCH /api/settings`;
+a key never written reads as its default. The one so far is **Auto-approve new
+chats**, off by default. The server applies it when the composer opens a chat
+(`withNewChatDefaults`), only where the start options do not already say;
+schedules and rooms carry their own setting. The chat's own checkbox then
+overrides it for that chat. Display preferences that are one person's taste
+(the theme, raw payloads) stay in the browser's `localStorage`.
 
 ## Robustness: hanging processes
 
