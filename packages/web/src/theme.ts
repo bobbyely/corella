@@ -1,6 +1,8 @@
 // The theme setting: which token block in styles.css is in force. Runs in the
 // browser, before first paint (main.tsx) and from the Settings page.
 // Reads and writes localStorage `corella.theme`; sets `data-theme` on <html>.
+// Also the one other display preference, raw payloads: localStorage
+// `corella.rawPayloads`, shown as `data-raw` on <html>.
 //
 // A theme is only a name here. Its colours are one block of tokens in
 // styles.css, so adding a theme is a new block there and a new entry in THEMES.
@@ -69,4 +71,25 @@ export function followSystemTheme(): void {
   window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener("change", () => {
     if (loadTheme() === "system") applyTheme("system");
   });
+}
+
+const RAW_KEY = "corella.rawPayloads";
+
+/** Whether a tool step shows the agent's raw JSON under it: a debugging aid, off by default. */
+export function loadRawPayloads(): boolean {
+  try {
+    return localStorage.getItem(RAW_KEY) === "on";
+  } catch {
+    return false;
+  }
+}
+
+/** CSS does the hiding (`:root[data-raw]`), so no row has to read the setting. */
+export function applyRawPayloads(on: boolean): void {
+  document.documentElement.toggleAttribute("data-raw", on);
+  try {
+    localStorage.setItem(RAW_KEY, on ? "on" : "off");
+  } catch {
+    // Not remembered, then.
+  }
 }

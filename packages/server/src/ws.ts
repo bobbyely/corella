@@ -144,7 +144,7 @@ async function dispatch(
       if (!provider) {
         throw kcError("PROVIDER_UNKNOWN", `No provider configured with id '${msg.providerId}'.`);
       }
-      const session = await sessions.open(provider, msg.cwd, msg.start, msg.draft ?? false);
+      const session = await sessions.open(provider, msg.cwd, sessions.withNewChatDefaults(msg.start), msg.draft ?? false);
       // Only once the agent is up: a start that failed is not one to repeat.
       sessions.rememberStart(provider.id, msg.start ?? {});
       // Watched from here rather than from the browser's `subscribe`, so a

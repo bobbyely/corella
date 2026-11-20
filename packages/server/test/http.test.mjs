@@ -144,3 +144,23 @@ describe("what a logged-in browser is sent", () => {
     assert.equal(get.status, 404);
   });
 });
+
+describe("the settings", () => {
+  const patch = (body, headers = cookie()) =>
+    fetch(`${base}/api/settings`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...headers },
+      body: JSON.stringify(body),
+    });
+
+  it("start with Auto-approve off, keep a change, and refuse anything but a boolean", async () => {
+    assert.deepEqual(await (await fetch(`${base}/api/settings`, { headers: cookie() })).json(), { autoApproveNewChats: false });
+
+    assert.equal((await patch({ autoApproveNewChats: "yes" })).status, 400);
+    assert.equal((await patch({ autoApproveNewChats: true }, {})).status, 401);
+
+    const on = await patch({ autoApproveNewChats: true });
+    assert.equal(on.status, 200);
+    assert.deepEqual(await (await fetch(`${base}/api/settings`, { headers: cookie() })).json(), { autoApproveNewChats: true });
+  });
+});

@@ -771,8 +771,9 @@ function ToolCard({ row }: { row: Extract<Row, { kind: "tool" }> }) {
           </p>
         ))}
 
-        {/* The raw payload stays reachable, just not in your face. */}
-        <details className="tool-raw">
+        {/* The raw payload is a debugging aid: shown only when Settings turns
+            it on, unless there is nothing else to show. */}
+        <details className={hasBody ? "tool-raw debug-only" : "tool-raw"}>
           <summary>{hasBody ? "Raw payload" : "No rendered content — raw payload"}</summary>
           <pre>{row.details.map((d) => JSON.stringify(d, null, 2)).join("\n")}</pre>
         </details>

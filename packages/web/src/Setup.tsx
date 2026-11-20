@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { CHECK_STAGES } from "@corella/shared";
 import type { CheckStage, HostPlatform, KcError, ProviderCheckResult, ProviderView } from "@corella/shared";
-import { ApiError, fetchProviders, runCheck, updateProvider } from "./api.js";
+import { ApiError, fetchProviders, fetchSettings, runCheck, updateProvider, updateSettings } from "./api.js";
 import { cardStatus, isReady } from "./providerStatus.js";
-import { applyTheme, loadTheme, resolveTheme, THEMES, type Theme } from "./theme.js";
+import { applyRawPayloads, applyTheme, loadRawPayloads, loadTheme, resolveTheme, THEMES, type Theme } from "./theme.js";
 
 export function Setup() {
   const [providers, setProviders] = useState<ProviderView[] | null>(null);
@@ -85,6 +85,7 @@ export function Setup() {
       {loadError && <div className="banner">{loadError}</div>}
 
       <ThemePicker />
+      <ChatSettings />
       <Shortcuts />
 
       <h2 className="section-label rule-label agents-label">Agents</h2>
@@ -104,6 +105,66 @@ export function Setup() {
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Switches for every chat. Auto-approve is the server's, so every tab agrees;
+ * raw payloads is this browser's, like the theme.
+ */
+function ChatSettings() {
+  const [autoApprove, setAutoApprove] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [raw, setRaw] = useState(loadRawPayloads);
+
+  useEffect(() => {
+    fetchSettings()
+      .then((s) => setAutoApprove(s.autoApproveNewChats))
+      .catch((err: unknown) => setError(err instanceof ApiError ? err.kc.message : String(err)));
+  }, []);
+
+  const changeAutoApprove = (on: boolean) => {
+    setAutoApprove(on);
+    setError(null);
+    updateSettings({ autoApproveNewChats: on })
+      .then((s) => setAutoApprove(s.autoApproveNewChats))
+      .catch((err: unknown) => {
+        setAutoApprove(!on);
+        setError(err instanceof ApiError ? err.kc.message : String(err));
+      });
+  };
+
+  return (
+    <section className="theme">
+      <h2 className="section-label rule-label">Chats</h2>
+      <label className="setting">
+        <input
+          type="checkbox"
+          checked={autoApprove === true}
+          disabled={autoApprove === null}
+          onChange={(e) => changeAutoApprove(e.target.checked)}
+        />
+        <span className="setting-name">Auto-approve new chats</span>
+        <span className="setting-note">
+          Each new chat starts with Auto-approve on: the agent runs commands and edits files without asking.
+          It only ever allows once, and its questions still wait for you. Turn it off for one chat with the
+          checkbox under the message box.
+        </span>
+      </label>
+      <label className="setting">
+        <input
+          type="checkbox"
+          checked={raw}
+          onChange={(e) => {
+            setRaw(e.target.checked);
+            applyRawPayloads(e.target.checked);
+          }}
+        />
+        <span className="setting-name">Show raw payloads</span>
+        <span className="setting-note">The agent's own JSON under each tool step. For debugging an agent.</span>
+      </label>
+      {error && <p className="remediation">{error}</p>}
+    </section>
   );
 }
 
@@ -232,9 +293,9 @@ function CommandHelp({
 
 const SHORTCUTS: Array<[string, string]> = [
   ["⌘/Ctrl + K", "Search conversations"],
-  ["⌘/Ctrl + ⇧ + O", "New chat"],
+  ["⌘/Ctrl + Shift + O", "New chat"],
   ["Alt + ↑ / ↓", "Previous / next conversation"],
-  ["Enter", "Send · ⇧ Enter for a newline"],
+  ["Enter", "Send · Shift + Enter for a newline"],
 ];
 
 function Shortcuts() {

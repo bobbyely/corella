@@ -348,14 +348,23 @@ export function Composer({
             )}
           {choice && <FolderPicker draft={choice} />}
           {session?.live && (
-            <label className="pick toggle" title="Approve the agent's tool calls without asking">
-              <Icon name="shield" size={15} />
+            // On, it is a lit lamp and its word at every width: this chat is
+            // not going to ask before it runs a command.
+            <label
+              className={`pick toggle ${session.autoApprove ? "auto-on" : ""}`}
+              title={
+                session.autoApprove
+                  ? "Auto-approving: the agent's tool calls are allowed once without asking. Untick to be asked."
+                  : "Approve the agent's tool calls without asking"
+              }
+            >
+              {session.autoApprove ? <i className="lamp" aria-hidden="true" /> : <Icon name="shield" size={15} />}
               <input
                 type="checkbox"
                 checked={session.autoApprove}
                 onChange={(e) => onSetAutoApprove(e.target.checked)}
               />
-              <span className="squeeze">Auto-approve</span>
+              <span className={session.autoApprove ? undefined : "squeeze"}>Auto-approve</span>
             </label>
           )}
         </div>
@@ -376,12 +385,14 @@ export function Composer({
               Interrupt &amp; send
             </button>
           )}
+          {/* Live while the agent works, because typing then queues: with an
+              empty box a press puts the cursor there to say so. */}
           <button
             className="hw hot send"
-            onClick={() => submit()}
-            disabled={empty || (!session && !choice)}
-            aria-label={busy ? "Queue" : "Send"}
-            title={busy ? "Queue for when this turn ends (Enter)" : "Send (Enter)"}
+            onClick={() => (empty ? box.current?.focus() : submit())}
+            disabled={busy ? !session : empty || (!session && !choice)}
+            aria-label={busy ? "Send when this turn ends" : "Send"}
+            title={busy ? "Send when this turn ends (Enter)" : "Send (Enter)"}
           >
             <Icon name="send" size={18} />
           </button>

@@ -26,7 +26,8 @@ function loadWidth(): number {
 
 /** The keys printed on New chat and Search, as this platform spells them. */
 const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
-const NEW_CHAT_KEYS = IS_MAC ? "⌘⇧O" : "Ctrl⇧O";
+// "Shift" in words: the self-hosted fonts have no ⇧, so it fell back to another face.
+const NEW_CHAT_KEYS = IS_MAC ? "⌘ Shift O" : "Ctrl Shift O";
 const SEARCH_KEYS = IS_MAC ? "⌘K" : "Ctrl K";
 
 /** Persistent left rail: new chat, past conversations, Schedules, Rooms, Settings, and the games. */
@@ -82,6 +83,22 @@ export function Sidebar({
   // transformed off screen, and a fixed panel inside it would go with it.
   const [playing, setPlaying] = useState(false);
   const awaitingInput = sessions?.some((s) => s.awaitingInput) ?? false;
+
+  // A chat that needs you, while you are looking at another tab or chat: the
+  // count in the tab's title, and one polite announcement per chat as it cues.
+  const cued = (sessions ?? []).filter((s) => s.awaitingInput);
+  const cuedIds = cued.map((s) => s.id).join(" ");
+  useEffect(() => {
+    document.title = cued.length ? `▲ ${cued.length} · Corella` : "Corella";
+  }, [cued.length]);
+  const announced = useRef(new Set<string>());
+  const [announcement, setAnnouncement] = useState("");
+  useEffect(() => {
+    const fresh = cued.filter((s) => !announced.current.has(s.id));
+    announced.current = new Set(cued.map((s) => s.id));
+    if (fresh.length) setAnnouncement(fresh.map((s) => `${s.title ?? "Untitled"} needs you`).join(". "));
+    // Keyed on the ids: a list refetch with the same chats cued says nothing new.
+  }, [cuedIds]);
 
   // Drag the right edge to resize. The width is a per-browser convenience,
   // like the theme, and the shell reads it from a CSS variable.
@@ -351,6 +368,9 @@ export function Sidebar({
       </div>
       {/* Opened from the chat's ··· menu, not a floating button: one that
           floats over the chat can cover a permission prompt's keys. */}
+      <p className="sr-only" role="status">
+        {announcement}
+      </p>
       {createPortal(
         <GamesPanel open={playing} awaitingInput={awaitingInput} onClose={() => setPlaying(false)} />,
         document.body,

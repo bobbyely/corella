@@ -1,6 +1,7 @@
 import { chmodSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import type {
+  AppSettings,
   KcError,
   KcEvent,
   ProviderCheckResult,
@@ -102,6 +103,13 @@ export class Store {
       CREATE TABLE IF NOT EXISTS provider_openings (
         provider_id TEXT PRIMARY KEY,
         opening     TEXT NOT NULL
+      ) WITHOUT ROWID;
+
+      -- App-wide settings changed from the Settings page, one row each, so
+      -- every tab sees the same. Values are JSON, as above.
+      CREATE TABLE IF NOT EXISTS settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
       ) WITHOUT ROWID;
 
       -- Prompts the server runs on a timer. Here rather than in config.json
@@ -620,6 +628,21 @@ export class Store {
     } else {
       this.db.prepare(`DELETE FROM provider_openings WHERE provider_id = ?`).run(providerId);
     }
+  }
+
+  /** The Settings page's switches. A row never written reads as the default. */
+  settings(): AppSettings {
+    const rows = this.db.prepare(`SELECT key, value FROM settings`).all() as { key: string; value: string }[];
+    const stored = Object.fromEntries(rows.map((r) => [r.key, JSON.parse(r.value) as unknown]));
+    return { autoApproveNewChats: stored["autoApproveNewChats"] === true };
+  }
+
+  updateSettings(patch: Partial<AppSettings>): AppSettings {
+    const write = this.db.prepare(
+      `INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    );
+    for (const [key, value] of Object.entries(patch)) write.run(key, JSON.stringify(value));
+    return this.settings();
   }
 
   /** Everything remembered for a provider, in the shape a new chat is started with. */

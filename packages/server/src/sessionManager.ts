@@ -340,6 +340,15 @@ export class SessionManager {
     return this.store.listSessions(1)[0]?.providerId ?? null;
   }
 
+  /**
+   * A new chat's start options with the Settings page's Auto-approve default
+   * filled in. Only a chat started from the composer comes through here: a
+   * schedule or a room says for itself.
+   */
+  withNewChatDefaults(start: StartOptions = {}): StartOptions {
+    return { ...start, autoApprove: start.autoApprove ?? this.store.settings().autoApproveNewChats };
+  }
+
   rememberStart(providerId: string, start: StartOptions): void {
     this.store.rememberStart(providerId, start);
   }

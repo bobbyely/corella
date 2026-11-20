@@ -4,6 +4,7 @@ import { extname, join, normalize } from "node:path";
 import { collectRoots, isImageMime, kcError, type KcError } from "@corella/shared";
 import type {
   AgentSessionsResponse,
+  AppSettings,
   ProviderView,
   RoomInput,
   Schedule,
@@ -223,6 +224,20 @@ async function handleApi(
       defaults: store.rememberedStart(p.id),
     }));
     return sendJson(res, 200, { providers, platform: hostPlatform() });
+  }
+
+  // GET /api/settings, PATCH /api/settings — the Settings page's switches.
+  if (url.pathname === "/api/settings") {
+    if (req.method === "GET") return sendJson(res, 200, store.settings());
+    if (req.method === "PATCH") {
+      const body = (await readJson(req)) as Record<string, unknown>;
+      const patch: Partial<AppSettings> = {};
+      if (typeof body["autoApproveNewChats"] === "boolean") patch.autoApproveNewChats = body["autoApproveNewChats"];
+      if (Object.keys(patch).length === 0) {
+        return sendError(res, 400, kcError("MESSAGE_INVALID", "Nothing to update: autoApproveNewChats must be true or false."));
+      }
+      return sendJson(res, 200, store.updateSettings(patch));
+    }
   }
 
   // PATCH /api/providers/:id — correct a command path without editing JSON.
