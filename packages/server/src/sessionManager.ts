@@ -8,7 +8,7 @@ import {
   type SessionSummary,
   type StartOptions,
 } from "@corella/shared";
-import { Session } from "./session.js";
+import { Session, TURN_CLOSED } from "./session.js";
 import type { Store } from "./store.js";
 
 /**
@@ -36,7 +36,41 @@ export class SessionManager {
    */
   private readonly resuming = new Map<string, Promise<Session>>();
 
+  /**
+   * How many sockets have each chat open. A reply that lands while someone is
+   * looking at it has been seen; one that lands with nobody watching is unread.
+   * Counted, not a flag, because two tabs can have the same chat open.
+   */
+  private readonly viewers = new Map<string, number>();
+
   constructor(private readonly store: Store) {}
+
+  /**
+   * A socket has opened this chat. Clears its unread mark, and keeps further
+   * replies from setting it until the returned function says it was closed.
+   */
+  view(id: string): () => void {
+    this.viewers.set(id, (this.viewers.get(id) ?? 0) + 1);
+    this.markRead(id);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const left = (this.viewers.get(id) ?? 1) - 1;
+      if (left > 0) this.viewers.set(id, left);
+      else this.viewers.delete(id);
+    };
+  }
+
+  /**
+   * A turn ended. Unread when nobody had the chat open, unless the turn ended
+   * only because the session was being closed: that is not a reply.
+   */
+  noteTurnEnd(id: string, stopReason: string): void {
+    if (stopReason === TURN_CLOSED || (this.viewers.get(id) ?? 0) > 0) return;
+    this.store.setSessionUnread(id, true);
+    for (const fn of this.changeListeners) fn();
+  }
 
   /**
    * Notified whenever any live session changes state, so connected clients can
@@ -53,6 +87,9 @@ export class SessionManager {
       for (const fn of this.changeListeners) fn();
     };
     session.onStateChange(broadcast);
+    session.subscribe((events) => {
+      for (const event of events) if (event.type === "turn_end") this.noteTurnEnd(session.id, event.stopReason);
+    });
     // A dead agent is not a live session: drop it so prompting reports
     // SESSION_NOT_LIVE with a way forward, rather than a confusing
     // "the agent is not connected" from a session the UI still thinks is fine.
@@ -206,22 +243,27 @@ export class SessionManager {
       commands: [],
       scheduleId: record.scheduleId,
       roomId: record.roomId,
+      unread: this.store.unreadSessionIds().has(id),
     };
   }
 
   list(limit = 100, includeArchived = false): SessionSummary[] {
+    const unread = this.store.unreadSessionIds();
     return this.store.listSessions(limit, includeArchived).map((record) => {
       const session = this.live.get(record.id);
       const summary = session ? session.summary() : this.summary(record.id);
-      return { ...summary, title: record.title, archived: record.status === "archived" };
+      return { ...summary, title: record.title, archived: record.status === "archived", unread: unread.has(record.id) };
     });
   }
 
-  /** Opening a scheduled run is what marks it read. A no-op for anything else. */
+  /** Opening a chat is what reads it, and a scheduled run's row with it. */
   markRead(id: string): void {
-    if (!this.store.getSession(id)?.scheduleId) return;
-    this.store.markRunRead(id);
-    for (const fn of this.changeListeners) fn();
+    const record = this.store.getSession(id);
+    if (!record) return;
+    const wasUnread = this.store.unreadSessionIds().has(id);
+    this.store.setSessionUnread(id, false);
+    if (record.scheduleId) this.store.markRunRead(id);
+    if (wasUnread || record.scheduleId) for (const fn of this.changeListeners) fn();
   }
 
   /**

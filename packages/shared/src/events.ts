@@ -129,6 +129,11 @@ export interface SessionSummary {
   scheduleId: string | null;
   /** Set when this conversation is one participant of a room. */
   roomId: string | null;
+  /**
+   * The agent finished a reply since anyone last had this chat open. Kept by
+   * the server, so it survives a reload and agrees across tabs.
+   */
+  unread: boolean;
 }
 
 /**

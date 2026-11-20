@@ -71,6 +71,8 @@ function handleConnection(ws: WebSocket, sessions: SessionManager): void {
   const watch = (sessionId: string) => {
     for (const off of watching) off();
     watching = [];
+    // Viewing counts for a chat restored from disk too: opening it reads it.
+    watching.push(sessions.view(sessionId));
     const live = sessions.getLive(sessionId);
     if (!live) return; // restored from disk: a transcript, with nothing live to add
     watching.push(live.subscribe((events) => send({ type: "events", sessionId: live.id, events })));
@@ -169,7 +171,6 @@ async function dispatch(
       watch(msg.sessionId);
       send({ type: "events", sessionId: msg.sessionId, events: backlog });
       send({ type: "session_state", session: sessions.summary(msg.sessionId) });
-      sessions.markRead(msg.sessionId);
       return;
     }
 

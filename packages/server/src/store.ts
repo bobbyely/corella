@@ -241,6 +241,10 @@ export class Store {
     if (!columns.includes("room_id")) {
       this.db.exec(`ALTER TABLE sessions ADD COLUMN room_id TEXT`);
     }
+    if (!columns.includes("unread")) {
+      // 0 for existing rows: an upgrade should not light up every old chat.
+      this.db.exec(`ALTER TABLE sessions ADD COLUMN unread INTEGER NOT NULL DEFAULT 0`);
+    }
     const scheduleColumns = (this.db.prepare(`PRAGMA table_info(schedules)`).all() as Array<{ name: string }>).map(
       (c) => c.name,
     );
@@ -424,6 +428,20 @@ export class Store {
       .prepare(`SELECT * FROM schedule_runs WHERE schedule_id = ? ORDER BY started_at DESC LIMIT ?`)
       .all(scheduleId, limit) as Array<Record<string, string | number | null>>;
     return rows.map(toRun);
+  }
+
+  /**
+   * Whether a chat has a reply its user has not seen. Read state, like a run's
+   * `unread`: it is not derived from `events`, so a sessions table rebuilt from
+   * the log starts with every chat read, which is the safe way to be wrong.
+   */
+  setSessionUnread(id: string, unread: boolean): void {
+    this.db.prepare(`UPDATE sessions SET unread = ? WHERE id = ?`).run(unread ? 1 : 0, id);
+  }
+
+  unreadSessionIds(): Set<string> {
+    const rows = this.db.prepare(`SELECT id FROM sessions WHERE unread = 1`).all() as Array<{ id: string }>;
+    return new Set(rows.map((r) => r.id));
   }
 
   /** Opening a run's conversation is what reads it. */

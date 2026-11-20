@@ -1415,6 +1415,10 @@ export class Session {
       commands: this.commands,
       scheduleId: this.scheduleId,
       roomId: this.roomId,
+      // Read state lives in the store; SessionManager fills it in for lists.
+      // A summary sent straight from here is for the chat being watched,
+      // which is read by definition.
+      unread: false,
     };
   }
 
