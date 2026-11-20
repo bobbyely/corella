@@ -124,7 +124,7 @@ Breaking one of these is a design regression, not a style nit.
 | `configOptions.ts` | Merges `configOptions` with the legacy `models`/`modes` |
 | `startOptions.ts` | `cleanStart` — a form's start options (config values, opening message) kept to their proper types |
 | `elicitation.ts` | Flattens an elicitation's JSON Schema into typed fields |
-| `store.ts` | `node:sqlite`: events, sessions, checks, FTS5 search |
+| `store.ts` | `node:sqlite`: events, sessions, checks, FTS5 search, and the Settings page's app-wide switches |
 | `terminals.ts` | `TerminalRegistry` — caps, truncation, group kill |
 | `processLedger.ts` | PID ledger and startup reaping |
 | `fs.ts` | `fs/read_text_file`, `fs/write_text_file` — for the agent, unsandboxed |
@@ -163,7 +163,7 @@ and holds no authoritative state (invariant 3).
 | `files.ts`, `FilesPane.tsx` | A viewer per format; the Files tab's tree and viewers |
 | `DiffView.tsx`, `diff.ts` | Diff rendering, shared by the tool cards, the Changes tab and the code viewer |
 | `ErrorBoundary.tsx` | Catches a render error so one broken part shows a message, not a blank app |
-| `styles.css`, `theme.ts` | The On Air visual system: one token block per theme (Cream, Studio, Glass), and the theme setting |
+| `styles.css`, `theme.ts` | The On Air visual system: one token block per theme (Cream, Studio, Glass), and the two per-browser display settings: the theme and raw payloads |
 | `ResizeHandle.tsx` | The sidebar's and side pane's drag edge: pointer (mouse, pen, touch) and arrow keys |
 | `icons.tsx`, `MoreMenu.tsx` | The one stroke icon family; the chat header's ··· menu, also the new chat's folder picker |
 | `when.ts` | The sidebar's ages ("9 min", "Tue") and its Today / Earlier split |
@@ -224,7 +224,8 @@ Before you call anything finished:
 `--experimental-strip-types` are built into Node 22.16, the lowest Corella supports.
 
 - `packages/web/src/__tests__/*.test.ts` — pure logic (diffing, folding the
-  event log into rows), run directly as TypeScript.
+  event log into rows), run directly as TypeScript. `contrast.test.ts` reads
+  the theme blocks out of `styles.css` and fails any text colour under 4.5:1.
 - `packages/server/test/*.test.mjs` — run against `dist`, so they exercise what
   actually ships. Node's type stripping does not rewrite `.js` specifiers to
   `.ts`, which is why these are plain `.mjs` importing the build.

@@ -59,8 +59,36 @@ always did in practice: before 22.13 the server stops at start, and before
   or Chromium), `--no-open` just prints the link, and `--port` picks the port.
   `npm link` in a clone puts it on your PATH.
 
+- **Auto-approve new chats,** a switch in Settings, off unless you turn it on.
+  With it on, every new chat starts with Auto-approve ticked; the checkbox
+  under the message box still turns it off for one chat. It only ever answers
+  "allow once", and the agent's own questions still wait for you. While a chat
+  is auto-approving, the composer row shows a lit lamp and the word.
+- **A cue reaches you in another tab.** While any chat needs you, the tab's
+  title reads "▲ 2 · Corella", and a screen reader hears "<chat> needs you"
+  once per chat.
+
 ### Changed
 
+- **Every word passes WCAG AA, in every theme.** Teal text has its own darker
+  ink on Cream (the lamp teal read at 3.4 to 4.2:1); each theme has its own
+  code colours, so Glass no longer borrows Studio's (3.0 to 3.8:1 on its
+  diffs); the Settings check ladder no longer fades its steps (1.7 to 3:1).
+  A test checks every theme's text against its backgrounds.
+- **Larger browser text works.** At 200% the running sheet's times, the titles
+  and the sidebar grow with it instead of overlapping or cutting off Settings.
+- **Raw payloads are hidden** under tool steps, unless Settings turns them on.
+- **Send stays lit while the agent works,** since what you type then is sent
+  when the turn ends; its tooltip says so.
+- **The keyboard and screen readers get more.** The message box has the same
+  focus ring as everything else; on a phone the chat list takes focus, closes
+  on Escape and gives focus back; Escape in "Choose another…" returns to the
+  folder key; room and schedule fields and the Remove buttons are named.
+- **On a phone the word games open as a sheet** along the foot of the screen
+  (they opened off screen).
+- **The Changes pane leaves the chat at least 480px,** and Rename and Archive
+  are larger and stop short of the chat's title.
+- **Shortcuts spell out Shift,** which the self-hosted fonts cannot draw as ⇧.
 - **Setup is now Settings,** with the theme choice, the keyboard shortcuts and
   the agents' checks.
 - **Conversations your agent already has** moved from the new-chat page into

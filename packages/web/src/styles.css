@@ -308,9 +308,9 @@ a { color: inherit; }
   overflow: hidden;
   container: sidebar / inline-size;
 }
-/* Too narrow for the shortcut beside "New chat": the words win. */
+/* Too narrow for the shortcuts beside "New chat" and Search: the words win. */
 @container sidebar (max-width: 280px) {
-  .new-chat kbd { display: none; }
+  .new-chat kbd, .sidebar-search kbd { display: none; }
 }
 .sidebar-resize {
   position: absolute;
@@ -374,7 +374,8 @@ a { color: inherit; }
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: 76px 1fr auto;
+  /* In rem, so the state tag's column grows with the text it holds. */
+  grid-template-columns: 4.75rem 1fr auto;
   column-gap: 8px;
   row-gap: 1px;
   align-items: baseline;
@@ -1562,7 +1563,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
     visibility: hidden;
     transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0.24s;
   }
-  .shell.list-open .sidebar { transform: none; visibility: visible; box-shadow: 8px 0 28px rgb(0 0 0 / 0.18); }
+  /* Visible at once when opening, so focus can move into it straight away. */
+  .shell.list-open .sidebar { transform: none; visibility: visible; transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: 8px 0 28px rgb(0 0 0 / 0.18); }
   .sidebar-resize { display: none; }
   .scrim { position: fixed; inset: 0; z-index: 29; padding: 0; border: none; border-radius: 0; background: rgb(0 0 0 / 0.32); }
   .list-back { margin: 12px 0 0 12px; }

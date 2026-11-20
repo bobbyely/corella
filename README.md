@@ -114,6 +114,15 @@ Corella is built to run on your own machine, for you alone.
 - **Do not put it on a network.** The agents it starts can read and change your
   files and run commands as you. That is what coding agents do.
 
+**Auto-approve** lets an agent work without stopping to ask. Tick it under the
+message box for one chat, or turn on **Auto-approve new chats** in Settings to
+start every new chat that way (it is off until you do). The risk is plain: the
+agent then runs commands and edits files without asking you first. Corella
+limits it to "allow once", never "always allow", so nothing is granted beyond
+the chat; the agent's own questions still wait for you; and every command still
+shows in the chat. A chat that is auto-approving shows a lit lamp and the word
+beside its message box.
+
 Found a security problem? See [SECURITY.md](SECURITY.md).
 
 ## Settings

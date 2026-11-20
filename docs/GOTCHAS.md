@@ -294,6 +294,19 @@ All of these were real races, found the hard way.
 
 ## Browser
 
+- **A container query cannot style its own container.** The running sheet's
+  gutter is three custom properties; set on `.chat`, the narrow-column rule
+  (`@container chat`) could not change them, and a sum like `--gutter` is
+  worked out where it is declared, so overriding a part below does not move
+  it. They are declared on `.chat > *`, sum included, in both places.
+- **Focus cannot land in an element still `visibility: hidden`.** The phone's
+  chat list fades `visibility` with its slide, so focusing into it in the
+  effect after opening did nothing. Opening switches visibility at once; only
+  the slide is animated.
+- **Never fade words with `opacity`.** It drops them below AA without touching
+  a colour token, so the contrast test cannot see it. Quieter text uses
+  `--muted`; teal words use `--onair-text`, not the lamp's `--onair`.
+
 - **A lookup table keyed by data needs `Object.hasOwn`.** `map[ext]` on a plain
   object turned a file named `x.constructor` into a function where a string
   was expected, the diff view threw, and with no error boundary the whole app
