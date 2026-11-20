@@ -1,6 +1,7 @@
 import type { StartOptions } from "@kirochrome/shared";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Chat } from "./Chat.js";
+import { ErrorBoundary } from "./ErrorBoundary.js";
 import { NewChat, type AdoptTarget } from "./NewChat.js";
 import { Rooms, RoomView } from "./Rooms.js";
 import { ScheduleLog, Schedules } from "./Schedules.js";
@@ -87,6 +88,7 @@ export function App() {
       />
 
       <main className="main">
+        <ErrorBoundary key={JSON.stringify(view)}>
         {view.name === "welcome" && (
           <div className="empty">
             <h1>KiroChrome</h1>
@@ -144,6 +146,7 @@ export function App() {
             onBack={chatBack}
           />
         )}
+        </ErrorBoundary>
       </main>
     </div>
   );

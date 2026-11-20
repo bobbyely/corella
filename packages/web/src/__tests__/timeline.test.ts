@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { KcEvent } from "@kirochrome/shared";
 import { latestUsage } from "@kirochrome/shared";
-import { buildRows, toolContent, toolSubtitle } from "../timeline.ts";
+import { buildRows, languageFor, toolContent, toolSubtitle } from "../timeline.ts";
 
 const ev = (e: Partial<KcEvent> & { type: KcEvent["type"] }, seq: number): KcEvent =>
   ({ seq, ts: 0, ...e }) as KcEvent;
@@ -229,5 +229,20 @@ describe("an adopted conversation", () => {
     ]);
     assert.deepEqual(rows.map((r) => r.kind), ["command", "user", "user", "user"]);
     assert.equal(rows[0]!.kind === "command" && rows[0]!.text, "/effort high");
+  });
+});
+
+describe("languageFor", () => {
+  it("names a language from the extension", () => {
+    assert.equal(languageFor("src/a.TS"), "typescript");
+    assert.equal(languageFor("notes.unknown"), "");
+  });
+
+  it("returns nothing for an extension that names an Object property", () => {
+    // These once returned a function, which crashed the diff view and, with
+    // no error boundary, blanked the whole app.
+    for (const name of ["x.constructor", "x.__proto__", "x.toString", "x.hasOwnProperty"]) {
+      assert.equal(languageFor(name), "", name);
+    }
   });
 });

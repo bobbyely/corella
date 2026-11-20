@@ -286,6 +286,12 @@ All of these were real races, found the hard way.
 
 ## Browser
 
+- **A lookup table keyed by data needs `Object.hasOwn`.** `map[ext]` on a plain
+  object turned a file named `x.constructor` into a function where a string
+  was expected, the diff view threw, and with no error boundary the whole app
+  went blank. There is now a boundary around the main view and the app, so a
+  broken part shows an error instead.
+
 - **The opening command is a message, so it named every chat.** A New chat
   opening of `/effort high` is sent as the first turn, and the title came from
   the first turn, so every conversation in the sidebar was called "/effort

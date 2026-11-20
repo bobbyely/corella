@@ -411,5 +411,6 @@ export function languageFor(path: string): string {
     rb: "ruby", php: "php", lua: "lua", pl: "perl", r: "r", diff: "diff", patch: "diff",
     makefile: "makefile", dockerfile: "dockerfile", graphql: "graphql", proto: "protobuf",
   };
-  return map[ext] ?? "";
+  // Own keys only: a file named `x.constructor` would otherwise get a function.
+  return Object.hasOwn(map, ext) ? map[ext]! : "";
 }
