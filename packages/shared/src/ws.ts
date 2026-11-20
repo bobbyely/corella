@@ -14,8 +14,22 @@ export type ClientMessage =
   /**
    * `draft` starts the agent for a new chat nobody has written in yet: it is
    * not saved or listed until the first message, and is closed if left.
+   * `requestId` is echoed on `session_opened`, and names this start for
+   * `hold_first`; any later open or subscribe on the socket supersedes it.
    */
-  | { type: "open"; providerId: string; cwd?: string; start?: StartOptions; draft?: boolean }
+  | { type: "open"; providerId: string; cwd?: string; start?: StartOptions; draft?: boolean; requestId?: string }
+  /**
+   * A new chat's first message, sent before its agent is up. The server holds
+   * it and sends it the moment the agent is ready, even if the socket has
+   * closed or moved on meanwhile; answered with `held`.
+   */
+  | {
+      type: "hold_first";
+      requestId: string;
+      text: string;
+      images?: Array<{ mime: string; data: string }>;
+      files?: string[];
+    }
   /**
    * Take over a conversation the agent already has, found via `session/list`.
    *
@@ -76,7 +90,9 @@ export type ClientMessage =
 
 /** Server → browser. */
 export type ServerMessage =
-  | { type: "session_opened"; session: SessionSummary }
+  | { type: "session_opened"; session: SessionSummary; requestId?: string }
+  /** The server has the first message for the start `requestId`: it is safe to clear. */
+  | { type: "held"; requestId: string }
   /** A batch of log events at or after the requested seq. */
   | { type: "events"; sessionId: string; events: KcEvent[] }
   | { type: "session_state"; session: SessionSummary }
@@ -187,7 +203,8 @@ interface MessageSpec {
  * adding a message without a spec is a type error rather than a hole.
  */
 const CLIENT_MESSAGE_SPECS: Record<ClientMessage["type"], MessageSpec> = {
-  open: { required: { providerId: str }, optional: { cwd: str, start: startOptions, draft: bool } },
+  open: { required: { providerId: str }, optional: { cwd: str, start: startOptions, draft: bool, requestId: str } },
+  hold_first: { required: { requestId: str, text: str }, optional: { images, files: strings } },
   // `cwd` is required here, unlike `open`: it is the listed session's own
   // directory as the agent reported it, not a choice the user is making.
   adopt: { required: { providerId: str, agentSessionId: str, cwd: str }, optional: { title: str } },

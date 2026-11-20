@@ -11,8 +11,8 @@ import { handleFrame } from "../dist/ws.js";
 /** Drives one frame through the real handler and returns what was sent back. */
 async function frame(raw, sessions = {}) {
   const sent = [];
-  const watch = () => {};
-  await handleFrame(raw, sessions, (msg) => sent.push(msg), watch, { includeArchived: false });
+  const view = { watch: () => {}, start: null, closed: false };
+  await handleFrame(raw, sessions, (msg) => sent.push(msg), view, { includeArchived: false });
   return sent;
 }
 
@@ -152,6 +152,7 @@ describe("inbound frame validation", () => {
       { type: "search", query: "q" },
       { type: "command_options", sessionId: "s1", command: "/c", partial: "" },
       { type: "list_sessions", includeArchived: true },
+      { type: "hold_first", requestId: "r1", text: "first", files: ["a.ts"] },
     ];
     for (const msg of valid) {
       const checked = validateClientMessage(msg);

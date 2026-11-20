@@ -154,7 +154,7 @@ and holds no authoritative state (invariant 3).
 | `commands.ts`, `mentions.ts` | The pure halves of the `/` and `@` pickers |
 | `Setup.tsx` | The ladder UI |
 | `StartPickers.tsx` | The model/mode/opening-message choice the schedule and room forms share. A new chat is `Chat` with `draft` set |
-| `outbox.ts` | A new chat's first message, held until its agent is up and sent exactly once |
+| `outbox.ts` | The page's copy of a new chat's first message, which the server holds until the agent is up: shown under "Starting…", given back if never confirmed |
 | `AgentConversations.tsx` | Under Search: conversations an agent already has, from `session/list` |
 | `Schedules.tsx` | Schedule list, form and run history |
 | `Rooms.tsx` | Room list, form and the room itself |

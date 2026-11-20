@@ -1,9 +1,8 @@
-// The new chat's first message, when it is sent before the agent is up.
-// Used by Chat.tsx: the agent starts in the background as soon as a new chat
-// opens, and Enter must not wait for it. The message is held here, shown under
-// "Starting <agent>…", and handed over exactly once when the chat is ready.
-// Browser-side on purpose: there is no conversation on the server to hold it
-// until the agent has started.
+// The new chat's first message, when it is sent before the agent is up: the
+// browser's copy of what the server is holding for it (`hold_first`).
+// Used by useChat. The server owns delivery, so the message survives a switch
+// of chat or a reload; this copy is only what to show under "Starting…", and
+// what to put back in the box if the server never got it, or the start failed.
 
 export interface Outgoing {
   text: string;
@@ -11,37 +10,55 @@ export interface Outgoing {
   files: string[];
 }
 
+const join = (messages: Outgoing[]): Outgoing | null =>
+  messages.length === 0
+    ? null
+    : {
+        text: messages.map((m) => m.text).join("\n\n"),
+        images: messages.flatMap((m) => m.images),
+        files: messages.flatMap((m) => m.files),
+      };
+
 export class Outbox {
-  private held: Outgoing | null = null;
+  private messages: Outgoing[] = [];
+  /** How many the server has confirmed. It answers in order, so these are the first ones. */
+  private confirmed = 0;
 
-  /** What is waiting, for the page to show. */
+  /** What is waiting, for the page to show. A second message is shown joined to the first. */
   get waiting(): Outgoing | null {
-    return this.held;
+    return join(this.messages);
   }
 
-  /** Keeps the message until `deliver` is called. A second hold adds to the first. */
+  /** Sent to the server; shown until the chat's log has it. */
   hold(message: Outgoing): void {
-    this.held = this.held
-      ? {
-          text: `${this.held.text}\n\n${message.text}`,
-          images: [...this.held.images, ...message.images],
-          files: [...this.held.files, ...message.files],
-        }
-      : message;
+    this.messages.push(message);
   }
 
-  /** Sends what is held, if anything. Calling it again sends nothing. */
-  deliver(send: (message: Outgoing) => void): void {
-    const message = this.held;
-    if (!message) return;
-    this.held = null;
-    send(message);
+  /** The server answered `held` for one more. */
+  confirm(): void {
+    this.confirmed = Math.min(this.confirmed + 1, this.messages.length);
   }
 
-  /** The start failed: gives the message back, to put in the box again. */
+  /** The start failed: the server sends none of it, so all of it goes back in the box. */
   takeBack(): Outgoing | null {
-    const message = this.held;
-    this.held = null;
-    return message;
+    const all = join(this.messages);
+    this.clear();
+    return all;
+  }
+
+  /**
+   * The socket dropped: what the server confirmed it will still send, so only
+   * the rest comes back. Giving back a confirmed one would send it twice.
+   */
+  takeBackUnconfirmed(): Outgoing | null {
+    const lost = join(this.messages.slice(this.confirmed));
+    this.messages = this.messages.slice(0, this.confirmed);
+    return lost;
+  }
+
+  /** Another chat is on screen: whatever was held is the server's to deliver. */
+  clear(): void {
+    this.messages = [];
+    this.confirmed = 0;
   }
 }

@@ -73,7 +73,8 @@ export function Composer({
   /** Agent-supplied argument suggestions, keyed by "command\u0000partial". */
   commandOptions: Record<string, CommandOption[]>;
   requestCommandOptions: (command: string, partial: string) => void;
-  onPrompt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => void;
+  /** False when the message could not be sent, so the box keeps it. */
+  onPrompt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => boolean | void;
   /** Like `onPrompt`, but cancels the running turn first. */
   onInterrupt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => void;
   onCancel: () => void;
@@ -112,7 +113,7 @@ export function Composer({
     // the current turn ends — or, with "now", cuts the turn short for it.
     if (!text && images.length === 0) return;
     const send = mode === "now" ? onInterrupt : onPrompt;
-    send(text, images.map(({ mime, data }) => ({ mime, data })), mentionedIn(text, chosen));
+    if (send(text, images.map(({ mime, data }) => ({ mime, data })), mentionedIn(text, chosen)) === false) return;
     setDraft("");
     setImages([]);
     setChosen(new Set());

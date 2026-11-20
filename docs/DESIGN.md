@@ -200,10 +200,20 @@ in memory and it is not listed. The first message sent promotes it — the held
 log is written, then the row — at the moment the message is queued, not when
 its turn runs, so a page that sends and closes its socket at once cannot lose
 it. A draft nobody is viewing any more (another chat opened, the tab closed)
-is closed by `SessionManager.view`, leaving no trace. A message sent before
-the agent is up waits in the browser (`outbox.ts`): there is no conversation on
-the server to hold it until `session_opened`, and it goes back into the box if
-the agent fails to start.
+is closed by `SessionManager.view`, leaving no trace.
+
+Each `open` carries a `requestId`, and a socket waits on one start at a time:
+any later `open`, `adopt`, `subscribe` or `resume` on it supersedes the start
+in flight (`SocketView.start` in `ws.ts`). A superseded start, or one whose
+socket closed, is not answered and its draft is closed when it comes up — so a
+slow agent in a folder since switched away from cannot take the next message.
+A message sent before the agent is up goes to the server as `hold_first`; the
+server holds it on that start and prompts it the moment the agent is ready,
+superseded or not, which promotes the draft into a listed chat. So switching
+chats or reloading mid-start cannot lose it, and only the server sends it, so
+it cannot go twice. The browser keeps a copy (`outbox.ts`) only to show under
+"Starting…", and gives it back to the box if the start fails or the server
+never answered `held`.
 
 **Settings the agent offers only as a slash command** (Kiro's `/effort`) are
 sent as *quiet* turns: a prompt with `quiet: true` runs as an ordinary turn,

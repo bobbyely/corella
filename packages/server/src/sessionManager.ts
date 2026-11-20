@@ -59,13 +59,16 @@ export class SessionManager {
       const left = (this.viewers.get(id) ?? 1) - 1;
       if (left > 0) return void this.viewers.set(id, left);
       this.viewers.delete(id);
-      // A new chat left before anything was said: its agent has no more use.
-      const draft = this.live.get(id);
-      if (draft?.isDraft) {
-        this.live.delete(id);
-        draft.close();
-      }
+      this.closeIfDraft(id);
     };
+  }
+
+  /** A new chat left before anything was said: its agent has no more use. */
+  closeIfDraft(id: string): void {
+    const draft = this.live.get(id);
+    if (!draft?.isDraft || (this.viewers.get(id) ?? 0) > 0) return;
+    this.live.delete(id);
+    draft.close();
   }
 
   /**

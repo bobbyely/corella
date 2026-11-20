@@ -162,6 +162,15 @@ All of these were real races, found the hard way.
   and registers itself synchronously, so the next tick cannot double it. The
   same tick wrote a `skipped` row every minute a 1-minute schedule was due
   while its run was still going — the overlap is recorded once.
+- **An `await` in a socket handler can outlive the socket and the reader's
+  choice.** A new chat's `open` waits for the agent's whole start. Accepting
+  every `session_opened` let a folder switched away from answer last and take
+  the next message; holding the first message in the page lost it on a reload;
+  and a `watch` that ran after the socket's `close` registered a viewer nobody
+  released, so the draft agent ran until shutdown. A start is now tied to the
+  socket's current request (`SocketView.start`), checked again after the
+  `await`, and the first message is held on the server (`hold_first`). Any new
+  awaited handler that ends by watching or answering must make the same check.
 
 ## Processes
 

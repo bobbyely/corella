@@ -33,7 +33,7 @@ import {
   type ToolDiff,
 } from "./timeline.js";
 import { useChat } from "./useChat.js";
-import { Outbox, type Outgoing } from "./outbox.js";
+import type { Outgoing } from "./outbox.js";
 import { isReady, useProviders } from "./useReadyProviders.js";
 
 /** Rows rendered initially, and how many more each "show earlier" adds. */
@@ -82,6 +82,9 @@ export function Chat({
     events,
     error,
     openSession,
+    holdFirst,
+    waiting,
+    returned,
     adoptSession,
     attachSession,
     resumeSession,
@@ -182,38 +185,25 @@ export function Chat({
     else if (providerId) openSession(providerId, cwd, start);
   }, [connected, openSession, adoptSession, attachSession, providerId, cwd, start, sessionId, adopt, draft, draftProvider, draftCwd, liveId]);
 
-  // A message sent before the new chat's agent is up waits here, shown under
-  // "Starting…", and goes once it is. Never sent twice, never dropped: if the
-  // agent fails to start, it goes back into the box.
-  const outbox = useRef(new Outbox());
-  const [waiting, setWaiting] = useState<Outgoing | null>(null);
-  const [restored, setRestored] = useState<{ text: string; n: number } | null>(null);
+  // A message sent before the new chat's agent is up goes to the server at
+  // once, which holds it and sends it when the agent is ready: switching chat
+  // or reloading cannot lose it. Shown under "Starting…" meanwhile; if the
+  // start fails, or the server never got it, it goes back into the box.
+  const restored = returned ? { text: returned.message.text, n: returned.n } : null;
   const live = session?.live === true;
   const send = useCallback(
-    (text: string, images: Outgoing["images"], files: string[]) => {
-      if (draft && !live) {
-        outbox.current.hold({ text, images, files });
-        setWaiting(outbox.current.waiting);
-        return;
-      }
+    (text: string, images: Outgoing["images"], files: string[]): boolean => {
+      if (draft && !live) return holdFirst({ text, images, files });
       prompt(text, images, files);
       if (draft && liveId) onBegan?.(liveId);
+      return true;
     },
-    [draft, live, liveId, prompt, onBegan],
+    [draft, live, liveId, prompt, holdFirst, onBegan],
   );
+  // Up, with a message held: the server has sent it, so this is a chat now.
   useEffect(() => {
-    if (!draft || !live || !liveId) return;
-    outbox.current.deliver((m) => {
-      prompt(m.text, m.images, m.files);
-      onBegan?.(liveId);
-    });
-  }, [draft, live, liveId, prompt, onBegan]);
-  useEffect(() => {
-    if (!draft || !error) return;
-    const back = outbox.current.takeBack();
-    setWaiting(null);
-    if (back) setRestored((r) => ({ text: back.text, n: (r?.n ?? 0) + 1 }));
-  }, [draft, error]);
+    if (draft && live && liveId && waiting) onBegan?.(liveId);
+  }, [draft, live, liveId, waiting, onBegan]);
   const quietCommand = useCallback((text: string) => prompt(text, [], [], true), [prompt]);
 
   const allRows = useMemo(() => buildRows(events), [events]);

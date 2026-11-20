@@ -47,7 +47,8 @@ function socket() {
     release();
     release = next;
   };
-  const frame = (msg) => handleFrame(JSON.stringify(msg), sessions, (m) => sent.push(m), watch, { includeArchived: false });
+  const view = { watch, start: null, closed: false };
+  const frame = (msg) => handleFrame(JSON.stringify(msg), sessions, (m) => sent.push(m), view, { includeArchived: false });
   return { sent, frame, leave: () => release() };
 }
 

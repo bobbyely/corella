@@ -35,7 +35,8 @@ always did in practice: before 22.13 the server stops at start, and before
 - **A new chat is the opening screen.** The cursor is in the box, and the
   agent, model, effort and folder are what you used last. The agent starts in
   the background while you type; a message sent before it is up waits under
-  "Starting…" and is never lost. The folder is a list of recent folders, plus
+  "Starting…" and is never lost: Corella holds it and sends it once the agent
+  is up, even if you open another chat or reload meanwhile. The folder is a list of recent folders, plus
   **Choose another…**. There is one **New chat** button.
 - **Agents are checked by themselves,** when Corella starts and when one is
   added or changed. An agent that failed says why in the agent picker. Check in
