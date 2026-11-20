@@ -11,7 +11,14 @@ import type {
 
 /** Browser → server. */
 export type ClientMessage =
-  | { type: "open"; providerId: string; cwd?: string; start?: StartOptions }
+  /**
+   * `draft` starts the agent for a new chat nobody has written in yet: it is
+   * not saved or listed until the first message, and is closed if left.
+   * `requestId` is echoed on its `session_opened` or startup `error`, so the
+   * page acts only on the start it is waiting for; any later open, adopt,
+   * subscribe or resume on the socket supersedes it, and it is not answered.
+   */
+  | { type: "open"; providerId: string; cwd?: string; start?: StartOptions; draft?: boolean; requestId?: string }
   /**
    * Take over a conversation the agent already has, found via `session/list`.
    *
@@ -28,6 +35,8 @@ export type ClientMessage =
       images?: Array<{ mime: string; data: string }>;
       /** `@` mentions as typed: relative to the working directory, or absolute inside a root. */
       files?: string[];
+      /** A setting sent as a slash command (`/effort high`): run, but not shown as said. */
+      quiet?: boolean;
     }
   /**
    * Send now rather than after the current turn: cancel it, then prompt. The
@@ -70,7 +79,7 @@ export type ClientMessage =
 
 /** Server → browser. */
 export type ServerMessage =
-  | { type: "session_opened"; session: SessionSummary }
+  | { type: "session_opened"; session: SessionSummary; requestId?: string }
   /** A batch of log events at or after the requested seq. */
   | { type: "events"; sessionId: string; events: KcEvent[] }
   | { type: "session_state"; session: SessionSummary }
@@ -79,7 +88,8 @@ export type ServerMessage =
   | { type: "command_options_result"; command: string; partial: string; options: CommandOption[] }
   /** What the new-chat page starts filled with: recent directories and the provider last chatted on. */
   | { type: "workspaces"; workspaces: string[]; current: string; lastProviderId: string | null }
-  | { type: "error"; error: KcError; sessionId?: string };
+  /** `requestId`: the start that failed, when it was an `open` that carried one. */
+  | { type: "error"; error: KcError; sessionId?: string; requestId?: string };
 
 /**
  * Validating the browser boundary.
@@ -181,12 +191,12 @@ interface MessageSpec {
  * adding a message without a spec is a type error rather than a hole.
  */
 const CLIENT_MESSAGE_SPECS: Record<ClientMessage["type"], MessageSpec> = {
-  open: { required: { providerId: str }, optional: { cwd: str, start: startOptions } },
+  open: { required: { providerId: str }, optional: { cwd: str, start: startOptions, draft: bool, requestId: str } },
   // `cwd` is required here, unlike `open`: it is the listed session's own
   // directory as the agent reported it, not a choice the user is making.
   adopt: { required: { providerId: str, agentSessionId: str, cwd: str }, optional: { title: str } },
   subscribe: { required: { sessionId: str, sinceSeq: num } },
-  prompt: { required: { sessionId: str, text: str }, optional: { images, files: strings } },
+  prompt: { required: { sessionId: str, text: str }, optional: { images, files: strings, quiet: bool } },
   interrupt: { required: { sessionId: str, text: str }, optional: { images, files: strings } },
   cancel: { required: { sessionId: str } },
   resume: { required: { sessionId: str, sinceSeq: num } },

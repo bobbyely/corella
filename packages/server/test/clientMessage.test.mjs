@@ -11,8 +11,8 @@ import { handleFrame } from "../dist/ws.js";
 /** Drives one frame through the real handler and returns what was sent back. */
 async function frame(raw, sessions = {}) {
   const sent = [];
-  const watch = () => {};
-  await handleFrame(raw, sessions, (msg) => sent.push(msg), watch, { includeArchived: false });
+  const view = { watch: () => {}, unwatch: () => {}, generation: 0, closed: false };
+  await handleFrame(raw, sessions, (msg) => sent.push(msg), view, { includeArchived: false });
   return sent;
 }
 

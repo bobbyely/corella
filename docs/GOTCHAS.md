@@ -162,6 +162,32 @@ All of these were real races, found the hard way.
   and registers itself synchronously, so the next tick cannot double it. The
   same tick wrote a `skipped` row every minute a 1-minute schedule was due
   while its run was still going — the overlap is recorded once.
+- **An `await` in a socket handler can outlive the socket and the reader's
+  choice.** A new chat's `open` waits for the agent's whole start, and a
+  `resume` for its replay. Accepting every `session_opened` let a folder
+  switched away from answer last and take the next message; a `watch` after
+  the socket's `close` registered a viewer nobody released, so the draft agent
+  ran until shutdown; a late resume replaced the chat on screen, closing its
+  draft. Every handler that changes the view bumps `SocketView.generation`;
+  one that awaits checks it, and `closed`, before it watches or answers, and
+  says nothing of a failure the reader has left. A new awaited handler must
+  do the same.
+- **Never let the server hold a message the user has not seen sent.** The
+  first try at "send before the agent is up" held the message server-side and
+  kept a copy in the page. A lost acknowledgement then sent it twice, a
+  reconnect started a second draft, and a failed start after a reload had
+  nowhere to give it back. Two copies of an unsent message is the bug; the
+  page keeps the only one, in the box, until the agent is up. Two follow-ons:
+  an unsaid draft dies with its socket, so the page must drop it on close
+  rather than resubscribe to a chat the server already closed; and a send on
+  a closed socket used to vanish while the box cleared, so `send` and
+  `prompt` now say whether the frame went.
+- **Two checks of one provider can be in flight.** Changing a provider while
+  its automatic check runs starts another; the slower one used to win and
+  either one ending cleared `checking`. `AutoCheck` numbers each provider's
+  checks and drops a superseded one's result and its clean-up. Keyed by a
+  counter, not by the form: a provider changed and changed back has the same
+  form twice.
 
 ## Processes
 
@@ -294,6 +320,19 @@ All of these were real races, found the hard way.
 
 ## Browser
 
+- **A container query cannot style its own container.** The running sheet's
+  gutter is three custom properties; set on `.chat`, the narrow-column rule
+  (`@container chat`) could not change them, and a sum like `--gutter` is
+  worked out where it is declared, so overriding a part below does not move
+  it. They are declared on `.chat > *`, sum included, in both places.
+- **Focus cannot land in an element still `visibility: hidden`.** The phone's
+  chat list fades `visibility` with its slide, so focusing into it in the
+  effect after opening did nothing. Opening switches visibility at once; only
+  the slide is animated.
+- **Never fade words with `opacity`.** It drops them below AA without touching
+  a colour token, so the contrast test cannot see it. Quieter text uses
+  `--muted`; teal words use `--onair-text`, not the lamp's `--onair`.
+
 - **A lookup table keyed by data needs `Object.hasOwn`.** `map[ext]` on a plain
   object turned a file named `x.constructor` into a function where a string
   was expected, the diff view threw, and with no error boundary the whole app
@@ -307,6 +346,13 @@ All of these were real races, found the hard way.
   `shared/src/events.ts`) now neither names the chat nor shows as a bubble:
   the next real message names it, and the command is a small line in the
   transcript. It stays in the log as it was sent.
+- **A draft must be promoted when its message is sent, not when it runs.**
+  The new chat closes a draft once nobody views it, and the page swaps to the
+  chat view right after sending, which can close the socket the message went
+  out on. Promoting in `runTurn` left a window where the queued message
+  belonged to a draft already being closed. `Session.prompt` promotes at once,
+  and `ws.ts` takes the new view before letting the old one go, so watching
+  the same chat again never drops its count to zero.
 - **An omitted `oldText` is not an empty one.** ACP's diff `oldText` is
   optional; coercing absence to `""` made the Changes pane label every write
   whose before-text the agent left out as a *new* file. Absent stays `null`:
@@ -348,6 +394,29 @@ All of these were real races, found the hard way.
   reads as slowness rather than polish. Jump for the first scroll into a
   conversation — from `useLayoutEffect`, so the top is never painted — and go
   smooth only once the reader is following live output.
+- **"Something is waiting on you" needs an identity, and drafts.** The word
+  games closed on a phone when the sidebar's list said any chat was waiting:
+  a boolean, so a second chat asking did not close it again, and the list
+  leaves new chats out, so a draft's quiet opening asking permission did not
+  count. The chat on screen now reports a key per open question
+  (`openAskKeys`), and the sheet closes when any key is new.
+- **Hiding a turn hides what it asks.** Quiet turns (`/effort high`) were
+  filtered down to their errors, which also dropped a permission prompt or a
+  question the command raised, and they reported `busy: false`, which hid
+  Stop: a quiet turn that asked could be neither answered nor ended.
+  `withoutQuiet` keeps requests and their resolutions, and a quiet turn
+  waiting on input is busy.
+- **A container query measures the content box, and in px it ignores text
+  size.** The sidebar's `max-width: 280px` for hiding shortcuts was met at
+  the default 300px width (268px inside the padding), so they never showed;
+  lowered to 240px, it then let them overflow at 200% text. In em (`15em`) it
+  is 240px at normal text and trips at large text, which is what needs the
+  room. The same em trick moves the sidebar's state tag above the title.
+- **A fixed `height` on a control clips large text; a select inside a pill
+  is only as tall as its text.** The composer's pills were `height: 32px` and
+  their select 22px, so a tap on most of a 44px pill only focused it. Pills
+  take `min-height`, and the select stretches over the pill, its padding and
+  the chevron (`pointer-events: none`).
 
 ## Untrusted input
 
@@ -453,3 +522,8 @@ All of these were real races, found the hard way.
   touch; or leave the main checkout's syncing to a moment when you are not
   mid-conversation. Operations that only move refs — `git fetch`, `git push`,
   `gh pr merge` — are safe, because they do not write to the working tree.
+- **A build input is anything the build reads, not only `src`.** `corella`
+  rebuilds when an input is newer than `dist`, and it once looked only at
+  `src` and the files beside it, so an edited icon or manifest in
+  `packages/web/public` ran the stale copy Vite had made into `dist`. A new
+  folder the build copies or reads goes into `buildNeeded` in `bin/cli.mjs`.

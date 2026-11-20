@@ -202,6 +202,15 @@ Nothing open.
 Known, deliberate, and not urgent — written down so it is a decision rather
 than a surprise. Each entry says what would go wrong if it is left.
 
+- **A sent message is not acknowledged.** The box clears once the frame is
+  written to an open socket. If the connection dies before the server reads
+  it, the message is gone: for a new chat's first message, the unsaid draft is
+  closed with the socket too. It needs a socket to fail in that instant, which
+  on 127.0.0.1 means the server stopping. The fix is a prompt id echoed by the
+  server, with the box (or a "not sent" marker) kept until it comes back and
+  reconciled on reconnect without resending; a protocol change, so its own
+  pull request.
+
 - **A dropped provider entry is only reported to stderr.** `loadConfig` now
   validates `config.json` and skips a broken provider rather than refusing the
   whole file, and returns what it skipped as `AppConfig.problems` — but the only

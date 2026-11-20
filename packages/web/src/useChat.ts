@@ -36,9 +36,30 @@ export function useChat() {
   const lastSeq = useRef(0);
   const sessionId = useRef<string | null>(null);
   const retry = useRef<number | null>(null);
+  /**
+   * The start this page is waiting on. Only its `session_opened` is shown:
+   * an earlier one, for a folder or agent since switched away from, can still
+   * answer, and taking it would send the next message to the wrong place.
+   */
+  const startId = useRef<string | null>(null);
+  /** The same, for rendering: a message waiting for the agent waits on this start. */
+  const [start, setStartState] = useState<string | null>(null);
+  const setStart = useCallback((id: string | null) => {
+    startId.current = id;
+    setStartState(id);
+  }, []);
+  /**
+   * Its `open`, until answered, and for a new chat until something is said
+   * in it: the server closes an unsaid draft when the socket drops, so that
+   * start is asked for again, as a new one.
+   */
+  const openFrame = useRef<Extract<ClientMessage, { type: "open" }> | null>(null);
 
-  const send = useCallback((msg: ClientMessage) => {
-    if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(msg));
+  /** False when the socket is not open and the frame went nowhere. */
+  const send = useCallback((msg: ClientMessage): boolean => {
+    if (ws.current?.readyState !== WebSocket.OPEN) return false;
+    ws.current.send(JSON.stringify(msg));
+    return true;
   }, []);
 
   const connect = useCallback(() => {
@@ -50,6 +71,15 @@ export function useChat() {
 
     socket.onopen = () => {
       setConnected(true);
+      // A start the old socket was waiting on was let go with it, by the
+      // server; ask again so this page is not left on "Starting…". A new id,
+      // so a message that was waiting on the old start is not sent by itself.
+      if (openFrame.current) {
+        const requestId = newRequestId();
+        openFrame.current = { ...openFrame.current, requestId };
+        setStart(requestId);
+        socket.send(JSON.stringify(openFrame.current));
+      }
       // Catch up on anything missed while we were away.
       if (sessionId.current) {
         socket.send(
@@ -66,6 +96,8 @@ export function useChat() {
       const msg = JSON.parse(String(raw.data)) as ServerMessage;
       switch (msg.type) {
         case "session_opened":
+          if (msg.requestId !== (startId.current ?? undefined)) break;
+          if (!openFrame.current?.draft) openFrame.current = null;
           sessionId.current = msg.session.id;
           lastSeq.current = 0;
           setSession(msg.session);
@@ -105,6 +137,13 @@ export function useChat() {
           setLastProviderId(msg.lastProviderId);
           break;
         case "error":
+          if (msg.requestId !== undefined) {
+            // A start's failure: an earlier start's is no longer this page's
+            // business, and the current one's ends it. The next Send starts afresh.
+            if (msg.requestId !== startId.current) break;
+            openFrame.current = null;
+            setStart(null);
+          }
           setError(msg.error);
           break;
       }
@@ -112,9 +151,18 @@ export function useChat() {
 
     socket.onclose = () => {
       setConnected(false);
+      // The server let the start, or the unsaid draft, go with the socket: the
+      // page drops it too, so nothing is sent to it and a waiting message
+      // waits on nothing now. Reconnecting starts it again.
+      if (openFrame.current) {
+        sessionId.current = null;
+        setSession(null);
+        setEvents([]);
+        setStart(null);
+      }
       retry.current = window.setTimeout(connect, 1_000);
     };
-  }, [send]);
+  }, [send, setStart]);
 
   useEffect(() => {
     connect();
@@ -128,10 +176,32 @@ export function useChat() {
     };
   }, [connect]);
 
+  /**
+   * Starts an agent. `draft` is a new chat nobody has written in yet; see the
+   * `open` message. The chat on screen is let go at once, so nothing typed
+   * meanwhile is sent to it by mistake.
+   */
   const openSession = useCallback(
-    (providerId: string, cwd?: string, start?: StartOptions) =>
-      send({ type: "open", providerId, ...(cwd ? { cwd } : {}), ...(start ? { start } : {}) }),
-    [send],
+    (providerId: string, cwd?: string, start?: StartOptions, draft = false) => {
+      sessionId.current = null;
+      setSession(null);
+      setEvents([]);
+      setError(null);
+      const requestId = newRequestId();
+      setStart(requestId);
+      const frame: Extract<ClientMessage, { type: "open" }> = {
+        type: "open",
+        requestId,
+        providerId,
+        ...(cwd ? { cwd } : {}),
+        ...(start ? { start } : {}),
+        ...(draft ? { draft } : {}),
+      };
+      openFrame.current = frame;
+      send(frame);
+      return requestId;
+    },
+    [send, setStart],
   );
 
   /**
@@ -141,15 +211,18 @@ export function useChat() {
    * needs to know which of the two happened.
    */
   const adoptSession = useCallback(
-    (providerId: string, listed: { agentSessionId: string; cwd: string; title: string | null }) =>
+    (providerId: string, listed: { agentSessionId: string; cwd: string; title: string | null }) => {
+      setStart(null);
+      openFrame.current = null;
       send({
         type: "adopt",
         providerId,
         agentSessionId: listed.agentSessionId,
         cwd: listed.cwd,
         ...(listed.title ? { title: listed.title } : {}),
-      }),
-    [send],
+      });
+    },
+    [send, setStart],
   );
 
   /**
@@ -160,6 +233,8 @@ export function useChat() {
    */
   const attachSession = useCallback(
     (id: string) => {
+      setStart(null);
+      openFrame.current = null;
       sessionId.current = id;
       lastSeq.current = 0;
       setSession(null);
@@ -167,7 +242,7 @@ export function useChat() {
       setError(null);
       send({ type: "subscribe", sessionId: id, sinceSeq: 0 });
     },
-    [send],
+    [send, setStart],
   );
 
   const listSessions = useCallback(
@@ -271,30 +346,37 @@ export function useChat() {
     [send],
   );
 
+  /** False when it could not be sent, so the box keeps it. */
   const prompt = useCallback(
-    (text: string, images: Array<{ mime: string; data: string }> = [], files: string[] = []) => {
-      if (!sessionId.current) return;
-      send({
+    (text: string, images: Array<{ mime: string; data: string }> = [], files: string[] = [], quiet = false): boolean => {
+      if (!sessionId.current) return false;
+      const sent = send({
         type: "prompt",
         sessionId: sessionId.current,
         text,
         ...(images.length > 0 ? { images } : {}),
         ...(files.length > 0 ? { files } : {}),
+        ...(quiet ? { quiet } : {}),
       });
+      // Said, so the draft is a saved chat now: a dropped socket no longer ends it.
+      if (sent && !quiet) openFrame.current = null;
+      return sent;
     },
     [send],
   );
 
   const interrupt = useCallback(
     (text: string, images: Array<{ mime: string; data: string }> = [], files: string[] = []) => {
-      if (!sessionId.current) return;
-      send({
+      if (!sessionId.current) return false;
+      const sent = send({
         type: "interrupt",
         sessionId: sessionId.current,
         text,
         ...(images.length > 0 ? { images } : {}),
         ...(files.length > 0 ? { files } : {}),
       });
+      if (sent) openFrame.current = null;
+      return sent;
     },
     [send],
   );
@@ -313,6 +395,7 @@ export function useChat() {
     events,
     error,
     openSession,
+    start,
     adoptSession,
     attachSession,
     resumeSession,
@@ -337,4 +420,9 @@ export function useChat() {
     interrupt,
     cancel,
   };
+}
+
+/** Unique enough: it only has to differ from this page's other starts. */
+function newRequestId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }

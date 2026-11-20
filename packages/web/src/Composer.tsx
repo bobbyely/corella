@@ -1,10 +1,41 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CommandOption, ConfigOption, FileEntry, SessionSummary, SlashCommand } from "@corella/shared";
+import { keepNewChat, readNewChat, waitingStep, type PromptResult } from "./firstMessage.js";
+import type { CommandOption, ConfigOption, FileEntry, ProviderView, SessionSummary, SlashCommand } from "@corella/shared";
 import { fetchDirectory } from "./api.js";
 import { commonPrefix, complete } from "./commands.js";
 import { completeMention, mentionAt, mentionPath, mentionedIn, splitMention } from "./mentions.js";
 import { useReadyProviders } from "./useReadyProviders.js";
 import { fileToImage, type PendingImage } from "./images.js";
+import { Icon } from "./icons.js";
+import { MoreMenu } from "./MoreMenu.js";
+
+/**
+ * A new chat's own pickers. The agent and the folder are chosen here before
+ * anything is said, and changing either starts a fresh agent rather than
+ * moving a conversation.
+ */
+export interface DraftChoice {
+  /** Every configured agent, so one that failed its check can say why. */
+  providers: ProviderView[] | null;
+  providerId: string | null;
+  onProvider: (id: string) => void;
+  folders: string[];
+  cwd: string;
+  onFolder: (path: string) => void;
+}
+
+/** The last two parts of a path (`project/api`): the browser does not know the home folder. */
+export function shortFolder(path: string): string {
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  return parts.length <= 2 ? path : parts.slice(-2).join("/");
+}
+
+/**
+ * Effort sits beside the model. Recognised by what was advertised: ACP's
+ * `thought_level` category, or a name that says effort (Kiro's `/effort`,
+ * an `effortLevel` option).
+ */
+const isEffort = (id: string, category?: string): boolean => category === "thought_level" || /effort/i.test(id);
 
 /**
  * The message box and everything that belongs to it.
@@ -30,7 +61,13 @@ export function Composer({
   onUnqueue,
   onEditQueued,
   onMoveQueued,
+  onQuietCommand,
   roots,
+  draft: choice,
+  autoFocus = false,
+  waitingOn = null,
+  ready = false,
+  agentName,
 }: {
   session: SessionSummary | null;
   busy: boolean;
@@ -39,9 +76,10 @@ export function Composer({
   /** Agent-supplied argument suggestions, keyed by "command\u0000partial". */
   commandOptions: Record<string, CommandOption[]>;
   requestCommandOptions: (command: string, partial: string) => void;
-  onPrompt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => void;
+  /** False when the message could not be sent, so the box keeps it. */
+  onPrompt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => PromptResult;
   /** Like `onPrompt`, but cancels the running turn first. */
-  onInterrupt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => void;
+  onInterrupt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => boolean;
   onCancel: () => void;
   onSetAutoApprove: (enabled: boolean) => void;
   onSetConfigOption: (configId: string, value: string | boolean) => void;
@@ -51,8 +89,20 @@ export function Composer({
   onUnqueue: (index: number) => void;
   onEditQueued: (index: number, text: string) => void;
   onMoveQueued: (from: number, to: number) => void;
+  /** Sends a setting the agent offers only as a slash command, without it showing as said. */
+  onQuietCommand: (text: string) => void;
+  /** Set on a new chat; see `DraftChoice`. */
+  draft?: DraftChoice | undefined;
+  autoFocus?: boolean;
+  /** The new chat's agent start in flight, if any: a message sent now waits on it. */
+  waitingOn?: string | null;
+  /** The agent is up, so a waiting message can go. */
+  ready?: boolean;
+  agentName?: string | undefined;
 }) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(() => (choice ? readNewChat() : ""));
+  /** The start a message is waiting on; while set, the box is kept as it is. */
+  const [pendingOn, setPendingOn] = useState<string | null>(null);
   const [images, setImages] = useState<PendingImage[]>([]);
   /** Index of the highlighted command while the slash picker is open. */
   const [commandIndex, setCommandIndex] = useState(0);
@@ -61,6 +111,7 @@ export function Composer({
   /** Directory listings the picker has fetched, by "root\0dir". */
   const [dirs, setDirs] = useState<Map<string, FileEntry[]>>(() => new Map());
 
+  const box = useRef<HTMLTextAreaElement>(null);
   const queued = session?.queued ?? [];
   const canAttach = session?.supportsImages === true;
 
@@ -70,11 +121,32 @@ export function Composer({
     // the current turn ends — or, with "now", cuts the turn short for it.
     if (!text && images.length === 0) return;
     const send = mode === "now" ? onInterrupt : onPrompt;
-    send(text, images.map(({ mime, data }) => ({ mime, data })), mentionedIn(text, chosen));
+    const result = send(text, images.map(({ mime, data }) => ({ mime, data })), mentionedIn(text, chosen));
+    if (result === false) return;
+    if (typeof result === "object") return setPendingOn(result.pendingOn);
+    // Now, not in the effect that saves it: a first message turns the new
+    // chat into a conversation in this same render, and that effect then skips.
+    if (choice) keepNewChat("");
     setDraft("");
     setImages([]);
     setChosen(new Set());
   };
+
+  // The new chat's words survive a reload; once sent, the box is empty and so is this.
+  useEffect(() => {
+    if (choice) keepNewChat(draft);
+  }, [choice, draft]);
+
+  // A message waiting for the agent goes once that same start is up. Any other
+  // outcome (a new folder or agent, a failed start, a dropped socket) leaves
+  // it in the box, unsent, to be sent again by hand.
+  useEffect(() => {
+    if (pendingOn === null) return;
+    const step = waitingStep(pendingOn, waitingOn, ready);
+    if (step === "wait") return;
+    setPendingOn(null);
+    if (step === "send") submit();
+  });
 
   // `@` completes against the directory the partial names: the working
   // directory for a relative one, whichever root contains an absolute one.
@@ -149,7 +221,25 @@ export function Composer({
     if (picked.length > 0) setImages((prev) => [...prev, ...picked]);
   };
 
+  /** The @ key: starts a mention where the cursor is, the same as typing one. */
+  const startMention = () => {
+    const el = box.current;
+    if (!el) return;
+    const at = el.selectionStart ?? draft.length;
+    const before = draft.slice(0, at);
+    const insert = before === "" || /\s$/.test(before) ? "@" : " @";
+    setDraft(before + insert + draft.slice(el.selectionEnd ?? at));
+    const caret = at + insert.length;
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(caret, caret);
+    });
+  };
+
+  const empty = !draft.trim() && images.length === 0;
+
   return (
+    <div className="dock">
     <div className="composer">
       {queued.length > 0 && (
         <div className="queued">
@@ -198,14 +288,30 @@ export function Composer({
           ))}
         </div>
       )}
+      <div className="composer-box">
+      {pendingOn !== null && (
+        <p className="composer-waiting" role="status">
+          <span className="lamp starting" aria-hidden />
+          Sends when {agentName ?? "the agent"} is ready
+          <button className="link" onClick={() => setPendingOn(null)}>
+            Cancel
+          </button>
+        </p>
+      )}
       <textarea
+        ref={box}
         value={draft}
+        readOnly={pendingOn !== null}
+        aria-label="Message"
+        autoFocus={autoFocus}
         placeholder={
-          busy
+          choice
+            ? "What should we work on?"
+            : busy
             ? "Type to queue for when this turn ends…"
             : canAttach
-              ? "Send a message — @ mentions a file, paste or drop an image"
-              : "Send a message — @ mentions a file"
+              ? "Reply, or type @ to add a file. Paste or drop an image"
+              : "Reply, or type @ to add a file"
         }
         onPaste={(e) => void collect(e.clipboardData?.files ?? null)}
         onDragOver={(e) => canAttach && e.preventDefault()}
@@ -244,62 +350,98 @@ export function Composer({
             submit((e.metaKey || e.ctrlKey) && busy ? "now" : "queue");
           }
         }}
-        rows={3}
+        rows={2}
       />
-      <div className="composer-actions">
+      <div className="composer-bar">
         <div className="composer-config">
+          <button className="pick icon" onClick={startMention} aria-label="Add a file" title="Add a file (@)" disabled={!session}>
+            <Icon name="at" />
+          </button>
+          {choice ? (
+            <DraftAgentPicker draft={choice} />
+          ) : (
+            session?.live && <ProviderPicker session={session} busy={busy} onSwitch={onSwitchProvider} />
+          )}
+          {session &&
+            pickers(session).map((picker) =>
+              picker.kind === "option" ? (
+                <ConfigPicker
+                  key={picker.option.id}
+                  option={picker.option}
+                  onChange={(value) => onSetConfigOption(picker.option.id, value)}
+                />
+              ) : (
+                <CommandPicker
+                  key={picker.command.name}
+                  command={picker.command}
+                  options={commandOptions[`${picker.command.name}\u0000`]}
+                  onOpen={() => requestCommandOptions(picker.command.name, "")}
+                  onChoose={(value) => {
+                    // Quietly: a setting, not something said. Remembered, so
+                    // the next new chat on this agent starts with it too.
+                    const command = `/${picker.command.name} ${value}`;
+                    onQuietCommand(command);
+                    onRememberOpening(session.providerId, command);
+                  }}
+                />
+              ),
+            )}
+          {choice && <FolderPicker draft={choice} />}
+        </div>
+        <div className="composer-buttons">
           {session?.live && (
-            <label className="config-toggle" title="Approve tool calls without asking">
+            // On, it is a lit lamp and its word at every width: this chat is
+            // not going to ask before it runs a command. Beside Send rather
+            // than in the pickers' row, which scrolls sideways when narrow and
+            // carried it out of sight under its fade.
+            <label
+              className={`pick toggle ${session.autoApprove ? "auto-on" : ""}`}
+              title={
+                session.autoApprove
+                  ? "Auto-approving: the agent's tool calls are allowed once without asking. Untick to be asked."
+                  : "Approve the agent's tool calls without asking"
+              }
+            >
+              {session.autoApprove ? <i className="lamp" aria-hidden="true" /> : <Icon name="shield" size={15} />}
               <input
                 type="checkbox"
                 checked={session.autoApprove}
                 onChange={(e) => onSetAutoApprove(e.target.checked)}
               />
-              Auto-approve
+              <span className={session.autoApprove ? undefined : "squeeze"}>Auto-approve</span>
             </label>
           )}
-          {session?.live && <ProviderPicker session={session} busy={busy} onSwitch={onSwitchProvider} />}
-          {session && pickableCommands(session).map((command) => (
-            <CommandPicker
-              key={command.name}
-              command={command}
-              options={commandOptions[`${command.name}\u0000`]}
-              onOpen={() => requestCommandOptions(command.name, "")}
-              onChoose={(value) => {
-                const opening = `/${command.name} ${value}`;
-                onPrompt(opening, [], []);
-                onRememberOpening(session.providerId, opening);
-              }}
-            />
-          ))}
-          {session?.configOptions.map((option) => (
-            <ConfigPicker
-              key={option.id}
-              option={option}
-              onChange={(value) => onSetConfigOption(option.id, value)}
-            />
-          ))}
-        </div>
-        <div className="composer-buttons">
-          {busy && <button onClick={onCancel}>Stop</button>}
+          {/* Stop is there only while there is something to stop. */}
           {busy && (
+            <button className="plain" onClick={onCancel} title="Stop the agent">
+              <Icon name="stop" size={14} />
+              <span className="squeeze">Stop</span>
+            </button>
+          )}
+          {busy && !empty && (
             <button
+              className="plain"
               onClick={() => submit("now")}
-              disabled={!draft.trim() && images.length === 0}
               title="Cancel the current turn and send this now (Cmd/Ctrl+Enter). What the agent was doing is abandoned."
             >
               Interrupt &amp; send
             </button>
           )}
+          {/* Live while the agent works, because typing then queues: with an
+              empty box a press puts the cursor there to say so. */}
           <button
-            className="primary"
-            onClick={() => submit()}
-            disabled={(!draft.trim() && images.length === 0) || !session}
+            className="hw hot send"
+            onClick={() => (empty ? box.current?.focus() : submit())}
+            disabled={busy ? !session : empty || (!session && !choice)}
+            aria-label={busy ? "Send when this turn ends" : "Send"}
+            title={busy ? "Send when this turn ends (Enter)" : "Send (Enter)"}
           >
-            {busy ? "Queue" : "Send"}
+            <Icon name="send" size={18} />
           </button>
         </div>
       </div>
+      </div>
+    </div>
     </div>
   );
 }
@@ -384,9 +526,139 @@ function pickableCommands(session: SessionSummary): SlashCommand[] {
   for (const option of session.configOptions) {
     covered.add(option.id);
     if (option.category) covered.add(option.category);
+    if (isEffort(option.id, option.category)) covered.add("effort");
   }
   if (covered.has("mode")) covered.add("agent");
   return session.commands.filter((c) => c.selection && !covered.has(c.name));
+}
+
+type Picker = { kind: "option"; option: ConfigOption } | { kind: "command"; command: SlashCommand };
+
+/** The row's settings in reading order: the model, then effort, then the rest as advertised. */
+function pickers(session: SessionSummary): Picker[] {
+  const all: Picker[] = [
+    ...session.configOptions.map((option) => ({ kind: "option" as const, option })),
+    ...pickableCommands(session).map((command) => ({ kind: "command" as const, command })),
+  ];
+  const rank = (p: Picker) =>
+    p.kind === "option" && p.option.category === "model"
+      ? 0
+      : isEffort(p.kind === "option" ? p.option.id : p.command.name, p.kind === "option" ? p.option.category : undefined)
+        ? 1
+        : 2;
+  // Array sort is stable, so equal ranks keep the agent's own order.
+  return all.sort((a, b) => rank(a) - rank(b));
+}
+
+/**
+ * The new chat's agent. Every configured agent is listed; one that failed its
+ * check, or is still being checked, is shown but cannot be chosen, and says
+ * why, so a missing agent is not a mystery.
+ */
+function DraftAgentPicker({ draft }: { draft: DraftChoice }) {
+  const providers = draft.providers ?? [];
+  const reason = (p: ProviderView): string | null =>
+    p.lastCheck?.status === "ok"
+      ? null
+      : p.checking
+        ? "checking…"
+        : (p.lastCheck?.error?.message ?? (p.lastCheck ? "failed its check" : "not checked yet"));
+  return (
+    <label className="pick" title="The agent this chat starts with. Each is checked when Corella starts; Settings says more.">
+      <select aria-label="Agent" value={draft.providerId ?? ""} onChange={(e) => draft.onProvider(e.target.value)}>
+        {!draft.providerId && <option value="">No agent ready</option>}
+        {providers.map((p) => {
+          const why = reason(p);
+          return (
+            <option key={p.id} value={p.id} disabled={why !== null} title={why ?? undefined}>
+              {why ? `${p.name} — ${why}` : p.name}
+            </option>
+          );
+        })}
+      </select>
+      <Icon name="chev" size={14} />
+    </label>
+  );
+}
+
+/**
+ * The new chat's folder: the ones worked in before, most recent first, and
+ * "Choose another…" for a path not among them. Typed, because a browser page
+ * cannot open the system's folder chooser and learn the path.
+ */
+function FolderPicker({ draft }: { draft: DraftChoice }) {
+  const [typing, setTyping] = useState(false);
+  const [path, setPath] = useState("");
+  // Holds both the field and the menu's key, so Enter or Escape can hand
+  // focus back to the key once it is drawn again (a blur leaves focus be).
+  const wrap = useRef<HTMLSpanElement>(null);
+  if (typing) {
+    const done = (commit: boolean, refocus = false) => {
+      setTyping(false);
+      if (commit && path.trim()) draft.onFolder(path.trim());
+      if (refocus) requestAnimationFrame(() => wrap.current?.querySelector("button")?.focus());
+    };
+    return (
+      <span className="folder-pick" ref={wrap}>
+      <input
+        className="pick folder-input"
+        aria-label="Folder path"
+        autoFocus
+        value={path}
+        placeholder="/path/to/project"
+        spellCheck={false}
+        onChange={(e) => setPath(e.target.value)}
+        onBlur={() => done(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            done(true, true);
+          }
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            done(false, true);
+          }
+        }}
+      />
+      </span>
+    );
+  }
+  const folders = draft.folders.includes(draft.cwd) || !draft.cwd ? draft.folders : [draft.cwd, ...draft.folders];
+  return (
+    <span className="folder-pick" ref={wrap}>
+    <MoreMenu
+      heading="Recent folders"
+      trigger={{
+        className: "pick folder",
+        label: `Folder: ${draft.cwd}`,
+        content: (
+          <>
+            <Icon name="folder" size={15} />
+            <span>{draft.cwd ? shortFolder(draft.cwd) : "Choose a folder"}</span>
+            <Icon name="chev" size={14} />
+          </>
+        ),
+      }}
+      items={[
+        ...folders.map((f) => ({
+          label: shortFolder(f),
+          title: f,
+          checked: f === draft.cwd,
+          mono: true,
+          onSelect: () => draft.onFolder(f),
+        })),
+        {
+          label: "Choose another…",
+          separated: true,
+          onSelect: () => {
+            setPath(draft.cwd);
+            setTyping(true);
+          },
+        },
+      ]}
+    />
+    </span>
+  );
 }
 
 /**
@@ -416,10 +688,10 @@ function CommandPicker({
   const [chosen, setChosen] = useState<string | null>(null);
   const current = chosen ?? options?.find((o) => o.current)?.value ?? "";
   return (
-    <label className="config-field" title={`${command.description} (/${command.name})`}>
-      <span className="config-label">{command.name}</span>
+    <label className="pick" title={`${command.description} (/${command.name})`}>
+      <span className="pick-label">{command.name.charAt(0).toUpperCase() + command.name.slice(1)}:</span>
       <select
-        className="config-select"
+        aria-label={command.name}
         value={current}
         onFocus={onOpen}
         onChange={(e) => {
@@ -436,6 +708,7 @@ function CommandPicker({
           </option>
         ))}
       </select>
+      <Icon name="chev" size={14} />
     </label>
   );
 }
@@ -464,20 +737,20 @@ function ProviderPicker({
   const choices = ready.some((p) => p.id === session.providerId)
     ? ready
     : [{ id: session.providerId, name: session.providerName }, ...ready];
-  if (choices.length < 2) return null;
+  // Still shown with one agent, as a label: the row says who you are talking to.
+  if (choices.length < 2) return <span className="pick static">{session.providerName}</span>;
   const pending = session.awaitingInput || session.queued.length > 0;
   return (
     <label
-      className="config-field"
+      className="pick"
       title={
         busy || pending
           ? "Wait for the turn to finish before switching"
           : "Move this conversation to another agent. It is given the transcript so far with your next message."
       }
     >
-      <span className="config-label">Provider</span>
       <select
-        className="config-select"
+        aria-label="Agent"
         value={session.providerId}
         disabled={busy || pending}
         onChange={(e) => onSwitch(e.target.value)}
@@ -488,6 +761,7 @@ function ProviderPicker({
           </option>
         ))}
       </select>
+      <Icon name="chev" size={14} />
     </label>
   );
 }
@@ -505,7 +779,7 @@ function ConfigPicker({
 
   if (option.type === "boolean") {
     return (
-      <label className="config-toggle" title={hint}>
+      <label className="pick toggle" title={hint}>
         <input
           type="checkbox"
           checked={Boolean(option.currentValue)}
@@ -515,11 +789,14 @@ function ConfigPicker({
       </label>
     );
   }
+  // A model or a mode reads as its value alone ("Opus", "Ask before edits");
+  // anything else keeps its name, so "High" says what it is high for.
+  const bare = option.category === "model" || option.category === "mode";
   return (
-    <label className="config-field" title={hint}>
-      <span className="config-label">{option.name}</span>
+    <label className="pick" title={hint}>
+      {!bare && <span className="pick-label">{option.name}:</span>}
       <select
-        className="config-select"
+        aria-label={option.name}
         value={String(option.currentValue)}
         onChange={(e) => onChange(e.target.value)}
       >
@@ -529,6 +806,7 @@ function ConfigPicker({
           </option>
         ))}
       </select>
+      <Icon name="chev" size={14} />
     </label>
   );
 }

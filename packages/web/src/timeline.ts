@@ -57,13 +57,16 @@ export type Row =
   | { kind: "divider"; seq: number };
 
 /**
- * Folds runs of consecutive tool calls and thinking into a single `work` row.
- *
- * A turn that reads four files and runs two commands is six rows of machinery
- * around one sentence of answer. Grouping keeps the conversation legible while
- * leaving every card one click away.
- *
- * A lone item is left alone — wrapping one tool call in a group is pure noise.
+ * The longest run of steps shown one line each. Each step is a single line on
+ * the running sheet with its own time, so a few in a row read fine; a longer
+ * run folds into one `work` line, so a turn of thirty reads does not bury the
+ * answer. Five is about a screen's glance; change it here if that proves wrong.
+ */
+export const FOLD_AFTER = 5;
+
+/**
+ * Folds runs of more than FOLD_AFTER consecutive tool calls and thoughts into
+ * a single `work` row, leaving every step one click away.
  */
 function groupWork(rows: Row[]): Row[] {
   const out: Row[] = [];
@@ -71,8 +74,8 @@ function groupWork(rows: Row[]): Row[] {
 
   const flush = () => {
     if (run.length === 0) return;
-    if (run.length === 1) {
-      out.push(run[0]!);
+    if (run.length <= FOLD_AFTER) {
+      out.push(...run);
     } else {
       const tools = run.filter((r) => r.kind === "tool");
       out.push({
@@ -144,7 +147,32 @@ function foldCompaction(
   if (u.error !== undefined) row.error = u.error;
 }
 
-export function buildRows(events: KcEvent[]): Row[] {
+/**
+ * The log without its quiet turns: a setting sent as a slash command
+ * (`/effort high`), and the agent's answer to it. Errors stay, so a setting
+ * that failed still says so, and so do questions and their answers: a quiet
+ * turn that asks permission cannot finish until someone can see the question.
+ */
+const QUIET_KEEPS = new Set<KcEvent["type"]>([
+  "error",
+  "permission_request",
+  "permission_resolved",
+  "elicitation_request",
+  "elicitation_resolved",
+]);
+
+export function withoutQuiet(events: KcEvent[]): KcEvent[] {
+  let quiet = false;
+  return events.filter((event) => {
+    if (event.type === "user_message") quiet = event.quiet === true;
+    if (!quiet) return true;
+    if (event.type === "turn_end") quiet = false;
+    return QUIET_KEEPS.has(event.type);
+  });
+}
+
+export function buildRows(all: KcEvent[]): Row[] {
+  const events = withoutQuiet(all);
   const rows: Row[] = [];
   const toolRows = new Map<string, Extract<Row, { kind: "tool" }>>();
   const permissionRows = new Map<string, Extract<Row, { kind: "permission" }>>();
@@ -413,4 +441,56 @@ export function languageFor(path: string): string {
   };
   // Own keys only: a file named `x.constructor` would otherwise get a function.
   return Object.hasOwn(map, ext) ? map[ext]! : "";
+}
+
+/** Seconds as a running-sheet time: `00:25`, or `1:02:07` past an hour. */
+export function clockLabel(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const mm = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const ss = String(total % 60).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/**
+ * The running sheet's times: for each event inside a turn, how long after the
+ * turn began it happened. The turn begins at your message (or the agent's
+ * `turn_start`, whichever is first) and ends at `turn_end`; anything between
+ * turns gets no time. Derived from the log, so a replay shows the same times.
+ */
+export function turnTimes(events: KcEvent[]): Map<number, number> {
+  const times = new Map<number, number>();
+  let start: number | null = null;
+  for (const event of events) {
+    if (start === null && (event.type === "user_message" || event.type === "turn_start")) start = event.ts;
+    if (start !== null) times.set(event.seq, event.ts - start);
+    if (event.type === "turn_end") start = null;
+  }
+  return times;
+}
+
+/** When the turn now running began, or null between turns. */
+export function currentTurnStart(events: KcEvent[]): number | null {
+  let start: number | null = null;
+  for (const event of events) {
+    if (start === null && (event.type === "user_message" || event.type === "turn_start")) start = event.ts;
+    if (event.type === "turn_end") start = null;
+  }
+  return start;
+}
+
+/** A question still waiting on you: its time is marked in the cue colour. */
+export function isOpenAsk(row: Row): boolean {
+  return (row.kind === "permission" && row.answeredWith === null) || (row.kind === "elicitation" && row.answer === null);
+}
+
+/**
+ * One key per question still open in a chat, space-separated. A key per
+ * question, not a flag per chat, so a second question is news too.
+ */
+export function openAskKeys(sessionId: string, rows: Row[]): string {
+  return rows
+    .filter(isOpenAsk)
+    .map((r) => `${sessionId}:${"requestId" in r ? r.requestId : ""}`)
+    .join(" ");
 }
