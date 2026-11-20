@@ -15,6 +15,12 @@ export class AutoCheck {
   /** What each provider looked like when this server last checked it. */
   private readonly checked = new Map<string, string>();
   private readonly running = new Set<string>();
+  /**
+   * Which check of each provider is the current one. A provider changed while
+   * its check runs has two in flight; whichever finished last used to win,
+   * and either one ending cleared `checking`.
+   */
+  private readonly generation = new Map<string, number>();
 
   constructor(private readonly store: Store) {}
 
@@ -25,10 +31,17 @@ export class AutoCheck {
       if (this.checked.get(provider.id) === form) continue;
       this.checked.set(provider.id, form);
       this.running.add(provider.id);
+      const mine = (this.generation.get(provider.id) ?? 0) + 1;
+      this.generation.set(provider.id, mine);
+      const current = () => this.generation.get(provider.id) === mine;
       checkProvider(provider)
-        .then((result) => this.store.saveCheck(result))
+        .then((result) => {
+          if (current()) this.store.saveCheck(result);
+        })
         .catch((err: unknown) => console.error(`[check ${provider.id}] automatic check failed:`, err))
-        .finally(() => this.running.delete(provider.id));
+        .finally(() => {
+          if (current()) this.running.delete(provider.id);
+        });
     }
   }
 

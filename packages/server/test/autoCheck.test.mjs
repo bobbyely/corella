@@ -42,3 +42,25 @@ it("checks a provider once in each form it takes, and records the result", async
   assert.ok(await until(() => !checks.checking("p")));
   assert.equal(store.lastCheck("p")?.status, "ok");
 });
+
+it("keeps only the latest form's result when a provider changes while its check runs", async () => {
+  const checks = new AutoCheck(store);
+  const slow = { id: "q", name: "Q", command: process.execPath, args: [MOCK], env: { MOCK_SESSION_DELAY_MS: "1500" } };
+  const broken = { ...slow, command: "/nonexistent/agent", args: [] };
+
+  // An old, slow check that would pass, overtaken by a fast one that fails.
+  checks.run([slow]);
+  checks.run([broken]);
+  assert.ok(await until(() => !checks.checking("q")));
+  assert.equal(store.lastCheck("q")?.status, "failed");
+  await new Promise((r) => setTimeout(r, 2_500)); // the slow one has finished by now
+  assert.equal(store.lastCheck("q")?.status, "failed", "the superseded check does not overwrite the current one");
+
+  // And the other way: the old check ending must not say the new one is done.
+  checks.run([{ ...broken, args: ["x"] }]);
+  checks.run([slow]);
+  await new Promise((r) => setTimeout(r, 300)); // the broken one has failed by now
+  assert.equal(checks.checking("q"), true, "still checking the current form");
+  assert.ok(await until(() => !checks.checking("q")));
+  assert.equal(store.lastCheck("q")?.status, "ok");
+});

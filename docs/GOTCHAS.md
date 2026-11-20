@@ -171,6 +171,12 @@ All of these were real races, found the hard way.
   socket's current request (`SocketView.start`), checked again after the
   `await`, and the first message is held on the server (`hold_first`). Any new
   awaited handler that ends by watching or answering must make the same check.
+- **Two checks of one provider can be in flight.** Changing a provider while
+  its automatic check runs starts another; the slower one used to win and
+  either one ending cleared `checking`. `AutoCheck` numbers each provider's
+  checks and drops a superseded one's result and its clean-up. Keyed by a
+  counter, not by the form: a provider changed and changed back has the same
+  form twice.
 
 ## Processes
 
