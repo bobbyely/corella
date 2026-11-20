@@ -4,6 +4,14 @@ All notable changes to Corella are written down here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Security
+
+- **Dependency updates.** `ws` 8.23.0 fixes a memory-exhaustion bug a peer
+  could trigger with a flood of pings. Vite, TypeScript and the rest are
+  updated too.
+
 ## [0.1.0] - 2026-11-20
 
 The first release. Corella is a chat window in your browser for coding agents
