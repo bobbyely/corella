@@ -10,6 +10,19 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # The Node types must match the lowest Node we support (22), or the
+      # typecheck allows calls that do not exist there. Revisit when the
+      # minimum Node in package.json moves to a new major.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # Vite 7+ and plugin-react 5+ need Node 22.12, above the 22.5 that
+      # package.json allows. Both were tried and pass on Node 22.12+. Revisit
+      # when the minimum Node in package.json is raised.
+      - dependency-name: "vite"
+        versions: [">=7"]
+      - dependency-name: "@vitejs/plugin-react"
+        versions: [">=5"]
 
   - package-ecosystem: github-actions
     directory: /
