@@ -286,7 +286,9 @@ a { color: inherit; }
 .icon { flex: none; }
 
 /* ---------- app shell ---------- */
-.shell { display: grid; grid-template-columns: var(--sidebar-width, 300px) 1fr; height: 100vh; }
+/* The sidebar never takes more than 40% of the window, so a narrow one keeps
+   room for the chat. shortcut: no real phone layout yet, that is its own ticket. */
+.shell { display: grid; grid-template-columns: min(var(--sidebar-width, 300px), 40vw) minmax(0, 1fr); height: 100vh; }
 .main { min-width: 0; overflow-y: auto; background: var(--bg); }
 
 .sidebar {
@@ -299,6 +301,8 @@ a { color: inherit; }
   padding: 20px 16px 14px;
   background: var(--sidebar);
   border-right: var(--rule-w) solid var(--line);
+  /* Squeezed below its natural width, it clips rather than spilling over the chat. */
+  overflow: hidden;
 }
 .sidebar-resize {
   position: absolute;
