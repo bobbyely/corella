@@ -219,7 +219,9 @@ never answered `held`.
 sent as *quiet* turns: a prompt with `quiet: true` runs as an ordinary turn,
 and its `user_message` carries `quiet`. The browser hides that turn and the
 agent's answer; it does not name the chat, does not count as working, and does
-not promote a draft. An opening that is only a slash command is sent quietly
+not promote a draft. Errors, permission prompts and questions are the
+exception: they stay visible, and a quiet turn waiting on one counts as working,
+so it can be answered or stopped. An opening that is only a slash command is sent quietly
 the same way, which is how the effort picker's last choice reaches every new
 chat. The log still holds it — nothing is hidden from the record, only from the
 transcript.

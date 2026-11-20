@@ -124,4 +124,15 @@ describe("a quiet command", () => {
     await session.prompt("kiro-commands");
     assert.equal(session.summary().title, "Kiro-commands");
   });
+
+  it("shows as working while it waits on a question, so Stop is there and it can be answered", async () => {
+    const session = await sessions.open(provider, dir);
+    const turn = session.prompt("ask-always-first", [], [], true);
+    assert.ok(await until(() => session.summary().awaitingInput), "the agent asked");
+    assert.equal(session.summary().busy, true, "a quiet turn waiting on you is not hidden");
+    const request = session.eventsSince(0).find((e) => e.type === "permission_request");
+    session.resolvePermission(request.requestId, "once");
+    await turn;
+    assert.equal(session.summary().busy, false);
+  });
 });

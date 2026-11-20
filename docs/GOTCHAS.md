@@ -377,6 +377,12 @@ All of these were real races, found the hard way.
   reads as slowness rather than polish. Jump for the first scroll into a
   conversation — from `useLayoutEffect`, so the top is never painted — and go
   smooth only once the reader is following live output.
+- **Hiding a turn hides what it asks.** Quiet turns (`/effort high`) were
+  filtered down to their errors, which also dropped a permission prompt or a
+  question the command raised, and they reported `busy: false`, which hid
+  Stop: a quiet turn that asked could be neither answered nor ended.
+  `withoutQuiet` keeps requests and their resolutions, and a quiet turn
+  waiting on input is busy.
 
 ## Untrusted input
 

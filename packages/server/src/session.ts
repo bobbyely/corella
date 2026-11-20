@@ -1443,20 +1443,25 @@ export class Session {
     return () => this.subscribers.delete(fn);
   }
 
+  private awaitingInput(): boolean {
+    return this.pendingPermissions.size > 0 || this.pendingElicitations.size > 0;
+  }
+
   summary(): SessionSummary {
     return {
       id: this.id,
       providerId: this.provider.id,
       providerName: this.provider.name,
       cwd: this.cwd,
-      // A quiet turn is a setting being applied, not the agent at work.
-      busy: this.busy && !this.quietTurn,
+      // A quiet turn is a setting being applied, not the agent at work —
+      // unless it is waiting on a question, when Stop must be there too.
+      busy: this.busy && (!this.quietTurn || this.awaitingInput()),
       lastSeq: this.seq,
       title: this.title,
       live: !this.exited,
       configOptions: this.configOptions,
       autoApprove: this.autoApprove,
-      awaitingInput: this.pendingPermissions.size > 0 || this.pendingElicitations.size > 0,
+      awaitingInput: this.awaitingInput(),
       queued: this.queue.map((q) => q.text),
       archived: false,
       supportsImages: this.supportsImages,

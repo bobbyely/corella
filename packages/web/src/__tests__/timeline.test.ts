@@ -245,6 +245,19 @@ describe("an adopted conversation", () => {
     ]);
     assert.deepEqual(rows.map((r) => r.kind), ["error", "user", "agent"]);
   });
+
+  it("keeps a question asked during a quiet turn, so the turn can be finished", () => {
+    const rows = buildRows([
+      ev({ type: "user_message", text: "/effort max", quiet: true } as never, 1),
+      ev({ type: "permission_request", requestId: "p1", title: "Allow?", options: [] } as never, 2),
+      ev({ type: "permission_resolved", requestId: "p1", optionId: "yes", outcome: "selected" } as never, 3),
+      ev({ type: "elicitation_request", requestId: "e1", message: "Which?", fields: [] } as never, 4),
+      ev({ type: "agent_text", text: "Effort set to max" } as never, 5),
+      ev({ type: "turn_end", stopReason: "end_turn" } as never, 6),
+    ]);
+    assert.deepEqual(rows.map((r) => r.kind), ["permission", "elicitation"]);
+    assert.equal(rows[0]!.kind === "permission" && rows[0]!.answeredWith, "yes", "and its answer");
+  });
 });
 
 describe("languageFor", () => {
