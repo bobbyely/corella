@@ -83,7 +83,9 @@
 
 /* --- themes: one block each. Keys are the comps' tokens (design/README.md).
    ground/sidebar/surface/line: the room. text/muted: ink.
-   onair: working (teal lamp). cue: needs you, and errors — red means one thing.
+   onair: working (teal lamp); onair-text is the same teal dark enough to read
+   as words. syn-*: code colours, each passing 4.5:1 on the surface and on the
+   diff's added and removed rows (__tests__/contrast.test.ts checks). cue: needs you, and errors — red means one thing.
    new: a reply you have not read. keycap/keyhot/well: the raised keys and their
    socket. glass/glow/warm: the readout, the one screen in the room. */
 :root,
@@ -91,34 +93,40 @@
   color-scheme: light;
   --ground: #ece4d2; --sidebar: #e3d9c3; --surface: #f6f0e2; --line: #cdc2a8; --rule: #1d1c19;
   --text: #1d1c19; --muted: #5c554a; --sel: #f2cf7e;
-  --onair: #177f83; --onair-ink: #ffffff; --cue: #b52a35; --cue-ink: #ffffff;
-  --new: #1d1c19; --new-ink: #f6f0e2; --ok: #12676a; --warn: #8a5a06;
+  --onair: #177f83; --onair-ink: #ffffff; --onair-text: #12676a; --cue: #b22834; --cue-ink: #ffffff;
+  --new: #1d1c19; --new-ink: #f6f0e2; --ok: #12676a; --warn: #825505;
   --keycap: #f8edcc; --keyink: #1d1c19; --keyhot: #2a2824; --keyhot-ink: #f8edcc; --well: #1c1b18;
   --glass: #0d3433; --glow: #8ff0d0; --warm: #ffb36b;
   --add-bg: #d5e6dc; --add-ink: #0d5658; --del-bg: #f1d4cf; --del-ink: #8f1f28;
   --cue-tint: #f3dcd6;
+  --syn-comment: #645d51; --syn-keyword: #7235da; --syn-string: #276749; --syn-number: #974902;
+  --syn-title: #1d4ed8; --syn-type: #0c6780; --syn-deletion: #ac321e; --syn-variable: #334155;
 }
 [data-theme="studio"] {
   color-scheme: dark;
   --ground: #141518; --sidebar: #0e0f11; --surface: #1d1e22; --line: #2e3036; --rule: #ecebe6;
   --text: #ecebe6; --muted: #a3a199; --sel: #3d5d5a;
-  --onair: #3cc2b4; --onair-ink: #08201e; --cue: #ff6b72; --cue-ink: #1d0b0c;
+  --onair: #3cc2b4; --onair-ink: #08201e; --onair-text: #3cc2b4; --cue: #ff6b72; --cue-ink: #1d0b0c;
   --new: #ecebe6; --new-ink: #141518; --ok: #5fd3c4; --warn: #ffb36b;
   --keycap: #3a3b41; --keyink: #ecebe6; --keyhot: #ecebe6; --keyhot-ink: #141518; --well: #030304;
   --glass: #0d3433; --glow: #8ff0d0; --warm: #ffb36b;
   --add-bg: #14302c; --add-ink: #8fe3cf; --del-bg: #3b1b1e; --del-ink: #ff9ea4;
   --cue-tint: #2c1a1d;
+  --syn-comment: #8893b6; --syn-keyword: #bb9af7; --syn-string: #9ece6a; --syn-number: #ff9e64;
+  --syn-title: #7aa2f7; --syn-type: #2ac3de; --syn-deletion: #f7768e; --syn-variable: #c0caf5;
 }
 [data-theme="glass"] {
   color-scheme: dark;
   --ground: #0d3433; --sidebar: #082625; --surface: #11403f; --line: #1f5856; --rule: #8ff0d0;
   --text: #dcf6ec; --muted: #93c6b6; --sel: #2a6b66;
-  --onair: #8ff0d0; --onair-ink: #08201e; --cue: #ff7a6b; --cue-ink: #200a07;
+  --onair: #8ff0d0; --onair-ink: #08201e; --onair-text: #8ff0d0; --cue: #ff7a6b; --cue-ink: #200a07;
   --new: #ffb36b; --new-ink: #231104; --ok: #8ff0d0; --warn: #ffb36b;
   --keycap: #1c5250; --keyink: #dcf6ec; --keyhot: #dcf6ec; --keyhot-ink: #0d3433; --well: #031413;
   --glass: #051c1b; --glow: #8ff0d0; --warm: #ffb36b;
   --add-bg: #1b5e4c; --add-ink: #aef5da; --del-bg: #4a2427; --del-ink: #ffb3aa;
   --cue-tint: #2a2e2a;
+  --syn-comment: #a5d2c4; --syn-keyword: #d5c0fa; --syn-string: #aed682; --syn-number: #ffba91;
+  --syn-title: #b3cafa; --syn-type: #75d8ea; --syn-deletion: #fbb8c4; --syn-variable: #c0caf5;
 }
 
 /* Roles the rules below use, derived from the theme block in force. Declared
@@ -131,22 +139,14 @@
   --border-strong: color-mix(in srgb, var(--text) 28%, var(--line));
   --accent: var(--onair);
   --accent-ink: var(--onair-ink);
+  /* Teal as words: --onair is for fills, lamps and rings, and is too light to
+     read as text on Cream. */
+  --accent-text: var(--onair-text);
   --accent-dim: color-mix(in srgb, var(--onair) 14%, transparent);
   --ok-bg: color-mix(in srgb, var(--ok) 14%, transparent);
   --fail: var(--cue);
   --fail-bg: var(--cue-tint);
   --warn-bg: color-mix(in srgb, var(--warn) 14%, transparent);
-
-  /* --- syntax: Tokyo Night on the dark themes, a matching set on Cream ---
-     light-dark() follows each theme block's color-scheme. */
-  --syn-comment: light-dark(#6b6457, #7f8bb0);
-  --syn-keyword: light-dark(#7c3aed, #bb9af7);
-  --syn-string: light-dark(#276749, #9ece6a);
-  --syn-number: light-dark(#9a4a02, #ff9e64);
-  --syn-title: light-dark(#1d4ed8, #7aa2f7);
-  --syn-type: light-dark(#0e7490, #2ac3de);
-  --syn-deletion: light-dark(#b3341f, #f7768e);
-  --syn-variable: light-dark(#334155, #c0caf5);
 }
 
 * { box-sizing: border-box; }
@@ -243,7 +243,7 @@ a { color: inherit; }
   box-shadow: 0 0 0 1px var(--well), 0 0 0 1px var(--well), inset 0 1px 3px rgb(0 0 0 / 0.2);
 }
 .hw:disabled { opacity: 0.5; }
-.hw kbd { font-size: var(--fs-2xs); font-weight: 500; padding: 0 5px; border-radius: 4px; border: 1px solid currentColor; background: none; opacity: 0.7; line-height: 1.4; }
+.hw kbd { font-size: var(--fs-2xs); font-weight: 500; padding: 0 5px; border-radius: 4px; border: 1px solid currentColor; background: none; line-height: 1.4; }
 .hw.wide { width: 100%; justify-content: flex-start; }
 .hw.wide kbd { margin-left: auto; }
 .hw.send { width: 40px; padding: 0; }
@@ -447,7 +447,7 @@ a { color: inherit; }
 .header { margin-bottom: var(--sp-5); }
 .header > button { margin-top: var(--sp-4); }
 .page > .section-label { margin-top: var(--sp-6); }
-.tally { margin: var(--sp-3) 0 0; font-size: var(--fs-sm); color: var(--accent); }
+.tally { margin: var(--sp-3) 0 0; font-size: var(--fs-sm); color: var(--accent-text); }
 
 .section-label {
   font: 600 var(--fs-2xs)/1.4 var(--mono);
@@ -494,7 +494,7 @@ a { color: inherit; }
   color: var(--muted);
   white-space: nowrap;
 }
-.pill-ok { border-color: var(--accent); color: var(--accent); }
+.pill-ok { border-color: var(--accent); color: var(--accent-text); }
 .pill-failed { border-color: var(--fail); color: var(--fail); }
 .pill-stale { border-color: var(--warn); color: var(--warn); }
 
@@ -512,10 +512,11 @@ a { color: inherit; }
 }
 .rung-ok { border-color: color-mix(in srgb, var(--ok) 50%, transparent); color: var(--ok); }
 .rung-failed { border-color: var(--fail); color: var(--fail); }
-.rung-pending { opacity: 0.6; }
-.rung-skipped { opacity: 0.35; }
+/* Not yet run, or never reached: said by the mark and the outline, not by
+   fading the words, which would drop them below AA. */
+.rung-skipped { border-style: dashed; }
 .rung-mark { font-weight: 700; }
-.rung-ms { opacity: 0.6; font-size: var(--fs-2xs); }
+.rung-ms { color: var(--muted); font-size: var(--fs-2xs); }
 
 .error { margin-top: var(--sp-4); padding: var(--sp-3); border-radius: var(--r-sm); background: var(--fail-bg); border: 1px solid color-mix(in srgb, var(--fail) 40%, transparent); }
 .error-head { display: flex; gap: var(--sp-2); align-items: baseline; flex-wrap: wrap; }
@@ -537,7 +538,7 @@ a { color: inherit; }
 
 .details { margin-top: var(--sp-2); font-size: var(--fs-sm); }
 .details summary { cursor: pointer; color: var(--muted); }
-.details summary:hover { color: var(--accent); }
+.details summary:hover { color: var(--accent-text); }
 .details pre, .notfound-cmd, .tool-raw > pre {
   margin: var(--sp-2) 0 0;
   padding: var(--sp-3);
@@ -574,7 +575,7 @@ a { color: inherit; }
 
 .chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-bottom: var(--sp-5); }
 .chip { font-size: var(--fs-xs); padding: var(--sp-1) var(--sp-2); }
-.chip-on { border-color: var(--accent); color: var(--accent); }
+.chip-on { border-color: var(--accent); color: var(--accent-text); }
 
 .provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--sp-2); }
 .provider-choice {
@@ -994,7 +995,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
 .config-toggle { display: flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-md); color: var(--muted); }
 
 .queued { margin: 0 0 var(--sp-2); display: flex; flex-direction: column; gap: var(--sp-1); }
-.queued-label { font: 600 var(--fs-2xs)/1.4 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--onair); }
+.queued-label { font: 600 var(--fs-2xs)/1.4 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-text); }
 .queued-item {
   display: flex;
   align-items: center;
@@ -1033,7 +1034,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
 .md h3 { font-size: var(--fs-md); }
 .md ul, .md ol { margin: 0 0 var(--sp-2); padding-left: var(--sp-5); }
 .md li { margin: 1px 0; }
-.md a { color: var(--onair); text-underline-offset: 3px; }
+.md a { color: var(--accent-text); text-underline-offset: 3px; }
 .md blockquote { margin: 0 0 var(--sp-2); padding-left: var(--sp-3); border-left: 2px solid var(--border-strong); color: var(--muted); }
 .md code { font-family: var(--mono); font-size: 0.9em; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
 .md pre { margin: 0 0 var(--sp-2); padding: var(--sp-3); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); overflow-x: auto; }
@@ -1131,7 +1132,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
 .command + .command { border-top: 1px solid var(--border); }
 .command:hover, .command.on { background: var(--accent-dim); color: var(--text); border: none; }
 .command.on { box-shadow: inset 2px 0 0 var(--accent); }
-.command-name { color: var(--accent); font-weight: 600; flex-shrink: 0; }
+.command-name { color: var(--accent-text); font-weight: 600; flex-shrink: 0; }
 .command-desc { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .command-hint { margin-left: auto; color: var(--muted); font-size: var(--fs-2xs); font-style: italic; flex-shrink: 0; }
 
@@ -1178,7 +1179,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
 }
 .schedule-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
 .schedule-name { padding: 0; border: none; font: inherit; font-weight: 600; color: var(--text); text-align: left; }
-.schedule-name:hover { color: var(--accent); border: none; }
+.schedule-name:hover { color: var(--accent-text); border: none; }
 .schedule-more { margin-top: var(--sp-2); font-size: var(--fs-xs); }
 .backlink { border: none; padding: 0; font-size: var(--fs-xs); color: var(--muted); margin-bottom: var(--sp-3); }
 .backlink:hover { border: none; }
@@ -1186,7 +1187,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
 .runs { list-style: none; margin: var(--sp-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
 .run { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-xs); padding: var(--sp-1) 0; border-top: 1px solid var(--border); }
 .run-mark { width: 1em; text-align: center; }
-.run-ok .run-mark { color: var(--accent); }
+.run-ok .run-mark { color: var(--accent-text); }
 .run-failed .run-mark { color: var(--fail); }
 .run-running .run-mark { color: var(--warn); }
 .run-when { font-variant-numeric: tabular-nums; }
@@ -1234,7 +1235,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
   border-color: transparent;
   color: var(--muted);
 }
-.games-tab.active { color: var(--accent); border-color: var(--accent); }
+.games-tab.active { color: var(--accent-text); border-color: var(--accent); }
 .games-spacer { flex: 1; }
 .games-nudge { font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--warn); }
 .games-close { padding: 0 var(--sp-2); border-color: transparent; font-size: var(--fs-lg); line-height: 1; }
@@ -1295,7 +1296,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
 .game-score { margin-left: auto; font-size: var(--fs-2xs); letter-spacing: 0.1em; color: var(--muted); }
 .found { display: flex; flex-wrap: wrap; gap: var(--sp-1); min-height: 20px; }
 .found-word { font-size: var(--fs-xs); padding: 1px var(--sp-2); border: 1px solid var(--border); border-radius: var(--r-sm); }
-.found-word.hit { border-color: var(--accent); color: var(--accent); }
+.found-word.hit { border-color: var(--accent); color: var(--accent-text); }
 .found-word.missed { color: var(--muted); border-style: dashed; }
 .game-note { margin: 0; font-size: var(--fs-xs); color: var(--muted); min-height: 1.4em; }
 .game-actions { display: flex; gap: var(--sp-2); justify-content: flex-end; }
@@ -1417,7 +1418,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
 .room-topic { margin: var(--sp-2) 0; font-size: var(--fs-sm); color: var(--muted); white-space: pre-wrap; }
 /* A form in sections: each a box with a heading, so the eye finds the parts. */
 .form-section { margin: var(--sp-4) 0; padding: var(--sp-3) var(--sp-4) var(--sp-4); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); }
-.form-section-title { margin: 0; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); }
+.form-section-title { margin: 0; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent-text); }
 .form-section .field:first-of-type { margin-top: var(--sp-3); }
 .form-section .field { margin: var(--sp-4) 0 0; }
 .form-section .chips { margin: var(--sp-2) 0 0; }
@@ -1446,7 +1447,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
 .room-people { display: flex; flex-wrap: wrap; gap: var(--sp-1); padding: var(--sp-2) var(--sp-4) 0; }
 .room-people .chip { display: inline-flex; align-items: center; gap: var(--sp-1); }
 .room-detached { font-size: var(--fs-xs); color: var(--muted); align-self: center; margin-left: var(--sp-2); }
-.room-link { border: none; padding: 0; font-size: inherit; color: var(--accent); text-decoration: underline; }
+.room-link { border: none; padding: 0; font-size: inherit; color: var(--accent-text); text-decoration: underline; }
 .room-link:hover { border: none; }
 .room-msg { display: flex; flex-direction: column; gap: 2px; align-self: stretch; }
 .room-msg-user { align-items: flex-end; }

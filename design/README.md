@@ -52,8 +52,9 @@ known risk, and this fixes it.
 
 ## Themes
 
-A theme is one block of tokens in `comps/build.mjs` (`THEMES`). Adding a theme
-means adding a block; no component changes.
+A theme is one block of tokens: in the app, `packages/web/src/styles.css`; in
+the comps, `comps/build.mjs` (`THEMES`). Adding a theme means adding a block; no
+component changes. The table is the app's; the comps predate the ink tokens.
 
 | Token | Cream (default, light) | Studio (dark) | Glass (character) |
 |---|---|---|---|
@@ -63,8 +64,10 @@ means adding a block; no component changes.
 | line | `#cdc2a8` | `#2e3036` | `#1f5856` |
 | text | `#1d1c19` | `#ecebe6` | `#dcf6ec` |
 | muted | `#5c554a` | `#a3a199` | `#93c6b6` |
-| on air (working) | `#177f83` | `#3cc2b4` | `#8ff0d0` |
-| cue (needs you, errors) | `#b52a35` | `#ff6b72` | `#ff7a6b` |
+| on air (working: fills, lamps, rings) | `#177f83` | `#3cc2b4` | `#8ff0d0` |
+| on air as words (`onair-text`) | `#12676a` | `#3cc2b4` | `#8ff0d0` |
+| cue (needs you, errors) | `#b22834` | `#ff6b72` | `#ff7a6b` |
+| warn | `#825505` | `#ffb36b` | `#ffb36b` |
 | new | `#1d1c19` | `#ecebe6` | `#ffb36b` |
 | key cap | `#f8edcc` | `#3a3b41` | `#1c5250` |
 | hot key (Send, Allow) | `#2a2824` | `#ecebe6` | `#dcf6ec` |
@@ -79,8 +82,31 @@ means adding a block; no component changes.
 - **Glass**: the whole window is Whipbird's glowing screen. Green glow for
   working, warm amber for new replies.
 
-The cream rosella is a shade darker than Whipbird's `#c8343f`, so red text on
-cream passes WCAG AA (4.5:1). All body and label text passes AA in all three.
+### Contrast: the ink tokens
+
+Every colour that is read as words passes WCAG AA (4.5:1) on every background
+it sits on, in all three themes. `packages/web/src/__tests__/contrast.test.ts`
+reads the token blocks out of `styles.css` and checks each pair, so a new theme
+or a changed colour fails the tests rather than the reader.
+
+- **Fill and ink are separate tokens.** `onair` is the teal of the lamp, the
+  ON AIR tag and the focus ring; it is too light to read as words on Cream
+  (3.4–4.2:1). Teal words use `onair-text` (5.8:1 on the surface). The ink *on*
+  a fill has its own token too: `onair-ink`, `cue-ink`, `new-ink`, `keyink`,
+  `keyhot-ink`.
+- **Text on the page:** `text`, `muted`, `onair-text`, `cue`, `ok`, `warn` on
+  ground, sidebar and surface.
+- **Diffs:** `add-ink` on `add-bg`, `del-ink` on `del-bg`.
+- **Code:** each theme has its own `syn-*` set, passing on the surface and on
+  the diff's added and removed rows. Studio keeps Tokyo Night; Glass lightens
+  it to read on its green glass; Cream has a darker set.
+- **Never fade words with opacity.** A disabled button may; a label that is
+  merely quieter uses `muted`. The settings check ladder used to fade pending
+  and skipped steps to 1.7–3:1; now it says so with its mark and a dashed
+  outline.
+
+The cream rosella is darker than Whipbird's `#c8343f`, so red text on the cream
+sidebar passes too.
 
 ## Type
 
