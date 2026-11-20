@@ -4,6 +4,23 @@ All notable changes to Corella are written down here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **A `corella` command.** It starts Corella and opens your browser already
+  logged in. `corella --app` opens it in its own window (Chrome, Edge, Brave
+  or Chromium), `--no-open` just prints the link, and `--port` picks the port.
+  `npm link` in a clone puts it on your PATH.
+
+### Changed
+
+- **Starting is quicker.** `npm start` and `corella` build only when the code
+  has changed since the last build, rather than every time: about 0.2 seconds
+  to a running server instead of about 2.3.
+- **A taken port gets a plain message**, saying whether Corella is already
+  running there, instead of a stack trace.
+
 ## [0.1.0] - 2026-11-20
 
 The first release. Corella is a chat window in your browser for coding agents
