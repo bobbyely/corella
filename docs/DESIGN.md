@@ -337,7 +337,10 @@ The visual system is "On Air" (approved comps and reasoning in
   header give up words before they wrap — by container queries on the chat
   column, so the same happens beside an open pane at 1280 — and on a phone the
   row scrolls sideways, with the folder menu as a sheet at the foot (a menu
-  inside a scrolling row would be clipped). Main controls are 44px on narrow
+  inside a scrolling row would be clipped). Auto-approve sits with Stop and
+  Send, outside that row, because a safety state must not scroll out of
+  sight; the word games' sheet closes when the agent asks, for the same
+  reason. Main controls are 44px on narrow
   or touch screens. Pure CSS plus one boolean in `App`; nothing about a chat
   changes with the width. Open, the list acts as a dialog: focus moves in,
   the page behind is `inert`, and Escape gives focus back to the back key.

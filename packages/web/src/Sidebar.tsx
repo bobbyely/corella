@@ -83,6 +83,11 @@ export function Sidebar({
   // transformed off screen, and a fixed panel inside it would go with it.
   const [playing, setPlaying] = useState(false);
   const awaitingInput = sessions?.some((s) => s.awaitingInput) ?? false;
+  // On a phone the games are a sheet over the chat, so over a prompt's keys:
+  // it gives way when the agent asks. The same width as the sheet's CSS.
+  useEffect(() => {
+    if (awaitingInput && window.matchMedia("(max-width: 860px)").matches) setPlaying(false);
+  }, [awaitingInput]);
 
   // A chat that needs you, while you are looking at another tab or chat: the
   // count in the tab's title, and one polite announcement per chat as it cues.

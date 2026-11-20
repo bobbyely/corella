@@ -64,7 +64,8 @@ always did in practice: before 22.13 the server stops at start, and before
   With it on, every new chat starts with Auto-approve ticked; the checkbox
   under the message box still turns it off for one chat. It only ever answers
   "allow once", and the agent's own questions still wait for you. While a chat
-  is auto-approving, the composer row shows a lit lamp and the word.
+  is auto-approving, a lit lamp and the word sit beside Send, in sight at
+  every width.
 - **A cue reaches you in another tab.** While any chat needs you, the tab's
   title reads "▲ 2 · Corella", and a screen reader hears "<chat> needs you"
   once per chat.
@@ -86,7 +87,14 @@ always did in practice: before 22.13 the server stops at start, and before
   on Escape and gives focus back; Escape in "Choose another…" returns to the
   folder key; room and schedule fields and the Remove buttons are named.
 - **On a phone the word games open as a sheet** along the foot of the screen
-  (they opened off screen).
+  (they opened off screen). The sheet closes when the agent asks you
+  something, so it never covers the prompt's keys, and "Agent needs you" in
+  the games is a button that takes you to the question.
+- **Large text keeps chat names readable:** at 200% the state tag moves above
+  the title, and Rename, Archive and their icons grow with the text. The
+  shortcuts beside New chat and Search show at the default sidebar width.
+- **The model, mode and effort pickers are tappable over their whole pill,**
+  44px tall on a phone (the select inside was 22px).
 - **The Changes pane leaves the chat at least 480px,** and Rename and Archive
   are larger and stop short of the chat's title.
 - **Shortcuts spell out Shift,** which the self-hosted fonts cannot draw as ⇧.

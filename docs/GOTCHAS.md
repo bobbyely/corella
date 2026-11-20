@@ -389,6 +389,17 @@ All of these were real races, found the hard way.
   Stop: a quiet turn that asked could be neither answered nor ended.
   `withoutQuiet` keeps requests and their resolutions, and a quiet turn
   waiting on input is busy.
+- **A container query measures the content box, and in px it ignores text
+  size.** The sidebar's `max-width: 280px` for hiding shortcuts was met at
+  the default 300px width (268px inside the padding), so they never showed;
+  lowered to 240px, it then let them overflow at 200% text. In em (`15em`) it
+  is 240px at normal text and trips at large text, which is what needs the
+  room. The same em trick moves the sidebar's state tag above the title.
+- **A fixed `height` on a control clips large text; a select inside a pill
+  is only as tall as its text.** The composer's pills were `height: 32px` and
+  their select 22px, so a tap on most of a 44px pill only focused it. Pills
+  take `min-height`, and the select stretches over the pill, its padding and
+  the chevron (`pointer-events: none`).
 
 ## Untrusted input
 

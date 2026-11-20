@@ -348,9 +348,13 @@ export function Composer({
               ),
             )}
           {choice && <FolderPicker draft={choice} />}
+        </div>
+        <div className="composer-buttons">
           {session?.live && (
             // On, it is a lit lamp and its word at every width: this chat is
-            // not going to ask before it runs a command.
+            // not going to ask before it runs a command. Beside Send rather
+            // than in the pickers' row, which scrolls sideways when narrow and
+            // carried it out of sight under its fade.
             <label
               className={`pick toggle ${session.autoApprove ? "auto-on" : ""}`}
               title={
@@ -368,8 +372,6 @@ export function Composer({
               <span className={session.autoApprove ? undefined : "squeeze"}>Auto-approve</span>
             </label>
           )}
-        </div>
-        <div className="composer-buttons">
           {/* Stop is there only while there is something to stop. */}
           {busy && (
             <button className="plain" onClick={onCancel} title="Stop the agent">
