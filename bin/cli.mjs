@@ -140,7 +140,7 @@ function newest(dir, skip) {
     return best; // a missing folder holds nothing, which is what the caller asks
   }
   for (const entry of entries) {
-    if (skip(entry.name)) continue;
+    if (skip(entry)) continue;
     const full = join(dir, entry.name);
     const found = entry.isDirectory() ? newest(full, skip) : { time: statSync(full).mtimeMs, file: full };
     if (found.time > best.time) best = found;
@@ -150,7 +150,10 @@ function newest(dir, skip) {
 
 /**
  * Why the build must run, or null when it is current. A package is stale when
- * any of its files is newer than everything in its `dist`.
+ * anything in its `src`, or a file beside it (package.json, tsconfig.json,
+ * vite.config.ts, index.html), is newer than everything in its `dist`. Not its
+ * `test` folder: the build never writes anything for that, so an edited test
+ * would make every start rebuild.
  *
  * shortcut: compares times, not contents, and ignores node_modules, so an
  * `npm install` that changes a dependency is not noticed; run `npm run build`
@@ -161,7 +164,9 @@ export function buildNeeded(root) {
   for (const pkg of PACKAGES) {
     const output = newest(join(root, pkg, "dist"), () => false);
     if (output.time === 0) return `${pkg} has not been built yet`;
-    const input = newest(join(root, pkg), (name) => name === "dist" || name === "node_modules" || name.endsWith(".tsbuildinfo"));
+    const source = newest(join(root, pkg, "src"), () => false);
+    const beside = newest(join(root, pkg), (entry) => entry.isDirectory() || entry.name.endsWith(".tsbuildinfo"));
+    const input = source.time > beside.time ? source : beside;
     if (input.time > output.time) return `${input.file.slice(root.length + 1)} changed since the last build`;
     if (base > output.time) return "tsconfig.base.json changed since the last build";
   }

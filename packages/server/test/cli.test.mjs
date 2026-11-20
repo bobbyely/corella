@@ -88,9 +88,14 @@ test("the build is needed when missing or older than a source, and not otherwise
 
   const now = new Date();
   for (const pkg of ["shared", "server", "web"]) write(`packages/${pkg}/dist/index.js`, now);
-  write("packages/server/tsconfig.tsbuildinfo", new Date(Date.now() + 60_000));
+  const later = new Date(Date.now() + 60_000);
+  write("packages/server/tsconfig.tsbuildinfo", later);
+  write("packages/server/test/x.test.mjs", later);
   assert.equal(buildNeeded(root), null);
 
-  write("packages/web/src/App.tsx", new Date(Date.now() + 60_000));
+  write("packages/web/src/App.tsx", later);
   assert.match(buildNeeded(root), /App\.tsx changed/);
+  write("packages/web/src/App.tsx", old);
+  write("packages/server/package.json", later);
+  assert.match(buildNeeded(root), /server\/package\.json changed/);
 });
