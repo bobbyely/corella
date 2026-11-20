@@ -21,7 +21,7 @@
     "test:server": "node --test --test-timeout=45000 'packages/server/test/*.test.mjs'"
   },
   "devDependencies": {
-    "@types/node": "22.18.13",
+    "@types/node": "22.20.5",
     "@types/ws": "8.18.2",
     "typescript": "7.0.2"
   }
