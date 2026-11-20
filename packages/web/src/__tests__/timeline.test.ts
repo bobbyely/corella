@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { KcEvent } from "@corella/shared";
 import { latestUsage } from "@corella/shared";
-import { buildRows, clockLabel, currentTurnStart, languageFor, toolContent, toolSubtitle, turnTimes } from "../timeline.ts";
+import { FOLD_AFTER, buildRows, clockLabel, currentTurnStart, languageFor, toolContent, toolSubtitle, turnTimes } from "../timeline.ts";
 
 const ev = (e: Partial<KcEvent> & { type: KcEvent["type"] }, seq: number): KcEvent =>
   ({ seq, ts: 0, ...e }) as KcEvent;
@@ -35,27 +35,29 @@ describe("buildRows", () => {
     assert.equal(toolRow.details.length, 3);
   });
 
-  it("groups consecutive tool calls but never across an answer", () => {
+  const run = (from: number, n: number, status = "completed") =>
+    Array.from({ length: n }, (_, i) => tool(from + i, `t${from + i}`, status));
+
+  it("folds a long run of tool calls but never across an answer", () => {
+    const n = FOLD_AFTER + 1;
     const rows = buildRows([
-      tool(1, "a", "completed"),
-      tool(2, "b", "completed"),
-      ev({ type: "agent_text", text: "mid" } as never, 3),
-      tool(4, "c", "completed"),
-      tool(5, "d", "completed"),
+      ...run(1, n),
+      ev({ type: "agent_text", text: "mid" } as never, 100),
+      ...run(101, n),
     ]);
     const groups = rows.filter((r) => r.kind === "work");
     assert.equal(groups.length, 2, "the answer between them must split the groups");
-    assert.deepEqual(groups.map((g) => g.kind === "work" && g.tools), [2, 2]);
+    assert.deepEqual(groups.map((g) => g.kind === "work" && g.tools), [n, n]);
   });
 
-  it("leaves a lone tool call ungrouped", () => {
-    const rows = buildRows([tool(1, "a", "completed"), ev({ type: "agent_text", text: "x" } as never, 2)]);
+  it("leaves a short run as one line per step, so each keeps its time", () => {
+    const rows = buildRows([...run(1, FOLD_AFTER), ev({ type: "agent_text", text: "x" } as never, 100)]);
     assert.equal(rows.filter((r) => r.kind === "work").length, 0);
-    assert.equal(rows.filter((r) => r.kind === "tool").length, 1);
+    assert.equal(rows.filter((r) => r.kind === "tool").length, FOLD_AFTER);
   });
 
   it("reports a group as active while any tool is unfinished", () => {
-    const rows = buildRows([tool(1, "a", "completed"), tool(2, "b", "in_progress")]);
+    const rows = buildRows([...run(1, FOLD_AFTER), tool(50, "b", "in_progress")]);
     const group = rows.find((r) => r.kind === "work");
     assert.ok(group && group.kind === "work" && group.active);
   });

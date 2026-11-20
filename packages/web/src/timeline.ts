@@ -57,13 +57,16 @@ export type Row =
   | { kind: "divider"; seq: number };
 
 /**
- * Folds runs of consecutive tool calls and thinking into a single `work` row.
- *
- * A turn that reads four files and runs two commands is six rows of machinery
- * around one sentence of answer. Grouping keeps the conversation legible while
- * leaving every card one click away.
- *
- * A lone item is left alone — wrapping one tool call in a group is pure noise.
+ * The longest run of steps shown one line each. Each step is a single line on
+ * the running sheet with its own time, so a few in a row read fine; a longer
+ * run folds into one `work` line, so a turn of thirty reads does not bury the
+ * answer. Five is about a screen's glance; change it here if that proves wrong.
+ */
+export const FOLD_AFTER = 5;
+
+/**
+ * Folds runs of more than FOLD_AFTER consecutive tool calls and thoughts into
+ * a single `work` row, leaving every step one click away.
  */
 function groupWork(rows: Row[]): Row[] {
   const out: Row[] = [];
@@ -71,8 +74,8 @@ function groupWork(rows: Row[]): Row[] {
 
   const flush = () => {
     if (run.length === 0) return;
-    if (run.length === 1) {
-      out.push(run[0]!);
+    if (run.length <= FOLD_AFTER) {
+      out.push(...run);
     } else {
       const tools = run.filter((r) => r.kind === "tool");
       out.push({

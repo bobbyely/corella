@@ -5,6 +5,7 @@ import { commonPrefix, complete } from "./commands.js";
 import { completeMention, mentionAt, mentionPath, mentionedIn, splitMention } from "./mentions.js";
 import { useReadyProviders } from "./useReadyProviders.js";
 import { fileToImage, type PendingImage } from "./images.js";
+import { Icon } from "./icons.js";
 
 /**
  * The message box and everything that belongs to it.
@@ -61,6 +62,7 @@ export function Composer({
   /** Directory listings the picker has fetched, by "root\0dir". */
   const [dirs, setDirs] = useState<Map<string, FileEntry[]>>(() => new Map());
 
+  const box = useRef<HTMLTextAreaElement>(null);
   const queued = session?.queued ?? [];
   const canAttach = session?.supportsImages === true;
 
@@ -149,7 +151,25 @@ export function Composer({
     if (picked.length > 0) setImages((prev) => [...prev, ...picked]);
   };
 
+  /** The @ key: starts a mention where the cursor is, the same as typing one. */
+  const startMention = () => {
+    const el = box.current;
+    if (!el) return;
+    const at = el.selectionStart ?? draft.length;
+    const before = draft.slice(0, at);
+    const insert = before === "" || /\s$/.test(before) ? "@" : " @";
+    setDraft(before + insert + draft.slice(el.selectionEnd ?? at));
+    const caret = at + insert.length;
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(caret, caret);
+    });
+  };
+
+  const empty = !draft.trim() && images.length === 0;
+
   return (
+    <div className="dock">
     <div className="composer">
       {queued.length > 0 && (
         <div className="queued">
@@ -198,14 +218,17 @@ export function Composer({
           ))}
         </div>
       )}
+      <div className="composer-box">
       <textarea
+        ref={box}
         value={draft}
+        aria-label="Message"
         placeholder={
           busy
             ? "Type to queue for when this turn ends…"
             : canAttach
-              ? "Send a message — @ mentions a file, paste or drop an image"
-              : "Send a message — @ mentions a file"
+              ? "Reply, or type @ to add a file. Paste or drop an image"
+              : "Reply, or type @ to add a file"
         }
         onPaste={(e) => void collect(e.clipboardData?.files ?? null)}
         onDragOver={(e) => canAttach && e.preventDefault()}
@@ -244,21 +267,21 @@ export function Composer({
             submit((e.metaKey || e.ctrlKey) && busy ? "now" : "queue");
           }
         }}
-        rows={3}
+        rows={2}
       />
-      <div className="composer-actions">
+      <div className="composer-bar">
         <div className="composer-config">
-          {session?.live && (
-            <label className="config-toggle" title="Approve tool calls without asking">
-              <input
-                type="checkbox"
-                checked={session.autoApprove}
-                onChange={(e) => onSetAutoApprove(e.target.checked)}
-              />
-              Auto-approve
-            </label>
-          )}
+          <button className="pick icon" onClick={startMention} aria-label="Add a file" title="Add a file (@)" disabled={!session}>
+            <Icon name="at" />
+          </button>
           {session?.live && <ProviderPicker session={session} busy={busy} onSwitch={onSwitchProvider} />}
+          {session?.configOptions.map((option) => (
+            <ConfigPicker
+              key={option.id}
+              option={option}
+              onChange={(value) => onSetConfigOption(option.id, value)}
+            />
+          ))}
           {session && pickableCommands(session).map((command) => (
             <CommandPicker
               key={command.name}
@@ -272,34 +295,48 @@ export function Composer({
               }}
             />
           ))}
-          {session?.configOptions.map((option) => (
-            <ConfigPicker
-              key={option.id}
-              option={option}
-              onChange={(value) => onSetConfigOption(option.id, value)}
-            />
-          ))}
+          {session?.live && (
+            <label className="pick toggle" title="Approve the agent's tool calls without asking">
+              <Icon name="shield" size={15} />
+              <input
+                type="checkbox"
+                checked={session.autoApprove}
+                onChange={(e) => onSetAutoApprove(e.target.checked)}
+              />
+              Auto-approve
+            </label>
+          )}
         </div>
         <div className="composer-buttons">
-          {busy && <button onClick={onCancel}>Stop</button>}
+          {/* Stop is there only while there is something to stop. */}
           {busy && (
+            <button className="plain" onClick={onCancel}>
+              <Icon name="stop" size={14} />
+              Stop
+            </button>
+          )}
+          {busy && !empty && (
             <button
+              className="plain"
               onClick={() => submit("now")}
-              disabled={!draft.trim() && images.length === 0}
               title="Cancel the current turn and send this now (Cmd/Ctrl+Enter). What the agent was doing is abandoned."
             >
               Interrupt &amp; send
             </button>
           )}
           <button
-            className="primary"
+            className="hw hot send"
             onClick={() => submit()}
-            disabled={(!draft.trim() && images.length === 0) || !session}
+            disabled={empty || !session}
+            aria-label={busy ? "Queue" : "Send"}
+            title={busy ? "Queue for when this turn ends (Enter)" : "Send (Enter)"}
           >
-            {busy ? "Queue" : "Send"}
+            <Icon name="send" size={18} />
           </button>
         </div>
       </div>
+      </div>
+    </div>
     </div>
   );
 }
@@ -416,10 +453,10 @@ function CommandPicker({
   const [chosen, setChosen] = useState<string | null>(null);
   const current = chosen ?? options?.find((o) => o.current)?.value ?? "";
   return (
-    <label className="config-field" title={`${command.description} (/${command.name})`}>
-      <span className="config-label">{command.name}</span>
+    <label className="pick" title={`${command.description} (/${command.name})`}>
+      <span className="pick-label">{command.name}:</span>
       <select
-        className="config-select"
+        aria-label={command.name}
         value={current}
         onFocus={onOpen}
         onChange={(e) => {
@@ -436,6 +473,7 @@ function CommandPicker({
           </option>
         ))}
       </select>
+      <Icon name="chev" size={14} />
     </label>
   );
 }
@@ -464,20 +502,20 @@ function ProviderPicker({
   const choices = ready.some((p) => p.id === session.providerId)
     ? ready
     : [{ id: session.providerId, name: session.providerName }, ...ready];
-  if (choices.length < 2) return null;
+  // Still shown with one agent, as a label: the row says who you are talking to.
+  if (choices.length < 2) return <span className="pick static">{session.providerName}</span>;
   const pending = session.awaitingInput || session.queued.length > 0;
   return (
     <label
-      className="config-field"
+      className="pick"
       title={
         busy || pending
           ? "Wait for the turn to finish before switching"
           : "Move this conversation to another agent. It is given the transcript so far with your next message."
       }
     >
-      <span className="config-label">Provider</span>
       <select
-        className="config-select"
+        aria-label="Agent"
         value={session.providerId}
         disabled={busy || pending}
         onChange={(e) => onSwitch(e.target.value)}
@@ -488,6 +526,7 @@ function ProviderPicker({
           </option>
         ))}
       </select>
+      <Icon name="chev" size={14} />
     </label>
   );
 }
@@ -505,7 +544,7 @@ function ConfigPicker({
 
   if (option.type === "boolean") {
     return (
-      <label className="config-toggle" title={hint}>
+      <label className="pick toggle" title={hint}>
         <input
           type="checkbox"
           checked={Boolean(option.currentValue)}
@@ -515,11 +554,14 @@ function ConfigPicker({
       </label>
     );
   }
+  // A model or a mode reads as its value alone ("Opus", "Ask before edits");
+  // anything else keeps its name, so "High" says what it is high for.
+  const bare = option.category === "model" || option.category === "mode";
   return (
-    <label className="config-field" title={hint}>
-      <span className="config-label">{option.name}</span>
+    <label className="pick" title={hint}>
+      {!bare && <span className="pick-label">{option.name}:</span>}
       <select
-        className="config-select"
+        aria-label={option.name}
         value={String(option.currentValue)}
         onChange={(e) => onChange(e.target.value)}
       >
@@ -529,6 +571,7 @@ function ConfigPicker({
           </option>
         ))}
       </select>
+      <Icon name="chev" size={14} />
     </label>
   );
 }

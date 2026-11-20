@@ -352,7 +352,7 @@ export function Chat({
           onTab={setPane}
           onClose={() => setPane(null)}
           tabs={{
-            changes: { label: "Changes", badge: changed > 0 ? <span className="head-count">{changed}</span> : null },
+            changes: { label: "Changes", badge: changed > 0 ? <span className="count">{changed}</span> : null },
             files: { label: "Files" },
           }}
         >

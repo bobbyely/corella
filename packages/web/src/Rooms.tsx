@@ -11,6 +11,7 @@ import type { ProviderView, RoomInput, RoomView } from "@corella/shared";
 import { ApiError, createRoom, deleteRoom, fetchRoom, fetchRooms, roomVerb } from "./api.js";
 import { useReadyProviders } from "./useReadyProviders.js";
 import { KSpinner } from "./KSpinner.js";
+import { Icon } from "./icons.js";
 import { MarkdownBody } from "./Markdown.js";
 import { chosen, StartPickers } from "./StartPickers.js";
 import { useChat } from "./useChat.js";
@@ -403,11 +404,12 @@ export function RoomView({
     <div className="chat room">
       <header className="chat-head">
         <button className="head-action" onClick={onBack} title="All rooms">
-          ← Rooms
+          <Icon name="back" size={14} />
+          Rooms
         </button>
         <div className="chat-title">
-          <strong>{room.name}</strong>
-          <code className="cmd">{room.topic}</code>
+          <h1>{room.name}</h1>
+          <p className="chat-sub">{room.topic}</p>
         </div>
         <button
           className={`head-action ${steering ? "active" : ""}`}
@@ -517,15 +519,18 @@ export function RoomView({
 
       {error && <div className="banner">{error}</div>}
 
+      <div className="dock">
       <div className="composer">
+        <div className="composer-box">
         <textarea
           value={draft}
+          aria-label="Message to the room"
           onChange={(e) => onDraft(e.target.value)}
           onKeyDown={onKeyDown}
-          rows={3}
+          rows={2}
           placeholder={busy ? "Typing holds the room; Enter sends, Cmd/Ctrl+Enter cuts in" : "Say something to start a round"}
         />
-        <div className="composer-actions">
+        <div className="composer-bar">
           <div className="composer-config">
             <span className="field-hint">
               {room.status === "held" && "Held — the room waits for you."}
@@ -534,18 +539,20 @@ export function RoomView({
             </span>
           </div>
           <div className="composer-buttons">
-            {busy && <button onClick={() => verb("stop")}>Stop</button>}
-            {!busy && room.messages.length > 0 && <button onClick={() => verb("resume")}>Continue</button>}
+            {busy && <button className="plain" onClick={() => verb("stop")}>Stop</button>}
+            {!busy && room.messages.length > 0 && <button className="plain" onClick={() => verb("resume")}>Continue</button>}
             {busy && speaking && (
-              <button onClick={() => send(true)} disabled={!draft.trim()} title="Cancel the turn in progress and send now">
+              <button className="plain" onClick={() => send(true)} disabled={!draft.trim()} title="Cancel the turn in progress and send now">
                 Cut in
               </button>
             )}
-            <button className="primary" onClick={() => send(false)} disabled={!draft.trim() || sending}>
-              Send
+            <button className="hw hot send" onClick={() => send(false)} disabled={!draft.trim() || sending} aria-label="Send" title="Send (Enter)">
+              <Icon name="send" size={18} />
             </button>
           </div>
         </div>
+        </div>
+      </div>
       </div>
     </div>
   );

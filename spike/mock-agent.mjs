@@ -149,8 +149,47 @@ const app = agent({ name: "mock-agent" })
       for (let i = 0; i < 100; i++) {
         if (cancelled.has(params.sessionId)) return { stopReason: "cancelled" };
         await notify({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "." } });
-        await sleep(100);
+        // Stretched for screenshots that need a chat still working.
+        await sleep(Number(process.env.MOCK_LONG_STEP_MS) || 100);
       }
+      return { stopReason: "end_turn" };
+    }
+
+    // The README screenshot's chat, with the comps' timing: a read, an edit,
+    // a test run, then a permission prompt left open. Generic content only.
+    if (/^Add a \/health endpoint/.test(params.prompt?.[0]?.text ?? "")) {
+      const step = (ms) => sleep(ms * (Number(process.env.MOCK_DEMO_PACE) || 1));
+      await notify({ sessionUpdate: "session_info_update", title: "Add a health check to the API" });
+      await notify({ sessionUpdate: "usage_update", used: 76_000, size: 200_000 });
+      await step(3000);
+      await notify({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "I'll add the route beside the existing status route, then run the tests." } });
+      await step(1000);
+      await notify({ sessionUpdate: "tool_call", toolCallId: "d-read", title: "Read", kind: "read", status: "completed", rawInput: { file_path: "src/server.ts" } });
+      await step(7000);
+      await notify({ sessionUpdate: "tool_call", toolCallId: "d-edit", title: "Edited", kind: "edit", status: "in_progress", rawInput: { file_path: "src/server.ts" } });
+      await notify({
+        sessionUpdate: "tool_call_update", toolCallId: "d-edit", status: "completed",
+        content: [{
+          type: "diff", path: "src/server.ts",
+          oldText: 'app.get("/status", (req, res) => {\n  res.json(status());\n});\n',
+          newText: 'app.get("/status", (req, res) => {\n  res.json(status());\n});\n\napp.get("/health", (req, res) => {\n  res.json({ ok: true, uptime: process.uptime() });\n});\n',
+        }],
+      });
+      await step(8000);
+      await notify({ sessionUpdate: "tool_call", toolCallId: "d-test", title: "Ran", kind: "execute", status: "completed", rawInput: { command: "npm test -- health" } });
+      await step(5000);
+      await notify({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "The test passes. To try it live I need to restart the api container. Requests fail for about two seconds." } });
+      await step(1000);
+      const answer = await client.request("session/request_permission", {
+        sessionId: params.sessionId,
+        toolCall: { toolCallId: "d-restart", title: "Run this command? docker compose restart api" },
+        options: [
+          { optionId: "once", name: "Allow once", kind: "allow_once" },
+          { optionId: "always", name: "Allow for this chat", kind: "allow_always" },
+          { optionId: "no", name: "Deny", kind: "reject_once" },
+        ],
+      });
+      await notify({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: answer.outcome.optionId === "no" ? "Left it running as it was." : "Restarted. /health answers 200." } });
       return { stopReason: "end_turn" };
     }
 
