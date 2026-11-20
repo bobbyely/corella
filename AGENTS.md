@@ -114,6 +114,7 @@ Breaking one of these is a design regression, not a style nit.
 | `session.ts` | **The big one.** ACP connection, event log, turns, queue, permissions, config options, commands |
 | `agentProcess.ts` | Spawn in a process group, stdio → `ndJsonStream`, stderr ring buffer |
 | `check.ts` | The seven-rung provider check ladder |
+| `autoCheck.ts` | Runs that check by itself: at start, and when a provider is added or changed |
 | `agentSessions.ts` | The `session/list` probe: conversations an agent holds of its own |
 | `scheduler.ts` | Runs saved prompts on a timer, each as an ordinary session; records the runs that never became one |
 | `rooms.ts` | Agents talking in turns: a round-robin router over ordinary sessions, prompts built from the room's own log |
@@ -149,10 +150,12 @@ and holds no authoritative state (invariant 3).
 | `Composer.tsx` | The message box and everything that changes per keystroke — draft, images, completion, the queue, the provider and config pickers — kept out of `Chat` so typing does not re-render the transcript |
 | `timeline.ts` | Folds events into typed rows |
 | `useChat.ts` | The socket and resume-by-seq |
-| `useReadyProviders.ts` | The checked-provider list every picker and form reads |
+| `useReadyProviders.ts` | The provider list, asked again while checks run, and the checked ones every picker and form reads |
 | `commands.ts`, `mentions.ts` | The pure halves of the `/` and `@` pickers |
 | `Setup.tsx` | The ladder UI |
-| `NewChat.tsx`, `StartPickers.tsx` | Starting a conversation; the model/mode/opening-message choice the forms share |
+| `StartPickers.tsx` | The model/mode/opening-message choice the schedule and room forms share. A new chat is `Chat` with `draft` set |
+| `outbox.ts` | A new chat's first message, held until its agent is up and sent exactly once |
+| `AgentConversations.tsx` | Under Search: conversations an agent already has, from `session/list` |
 | `Schedules.tsx` | Schedule list, form and run history |
 | `Rooms.tsx` | Room list, form and the room itself |
 | `SidePane.tsx` | The drawer beside the transcript, with its two tabs |
@@ -161,7 +164,7 @@ and holds no authoritative state (invariant 3).
 | `DiffView.tsx`, `diff.ts` | Diff rendering, shared by the tool cards, the Changes tab and the code viewer |
 | `ErrorBoundary.tsx` | Catches a render error so one broken part shows a message, not a blank app |
 | `styles.css`, `theme.ts` | The On Air visual system: one token block per theme (Cream, Studio, Glass), and the theme setting |
-| `icons.tsx`, `MoreMenu.tsx` | The one stroke icon family; the chat header's ··· menu |
+| `icons.tsx`, `MoreMenu.tsx` | The one stroke icon family; the chat header's ··· menu, also the new chat's folder picker |
 | `when.ts` | The sidebar's ages ("9 min", "Tue") and its Today / Earlier split |
 | `fonts/` | Archivo and Red Hat Mono as woff2, self-hosted, with their OFL licences |
 | `Sidebar`, `images`, `useShortcuts`, `Markdown`, `KSpinner`, `api` | What their names say |

@@ -147,7 +147,23 @@ function foldCompaction(
   if (u.error !== undefined) row.error = u.error;
 }
 
-export function buildRows(events: KcEvent[]): Row[] {
+/**
+ * The log without its quiet turns: a setting sent as a slash command
+ * (`/effort high`), and the agent's answer to it. Errors stay, so a setting
+ * that failed still says so.
+ */
+export function withoutQuiet(events: KcEvent[]): KcEvent[] {
+  let quiet = false;
+  return events.filter((event) => {
+    if (event.type === "user_message") quiet = event.quiet === true;
+    if (!quiet) return true;
+    if (event.type === "turn_end") quiet = false;
+    return event.type === "error";
+  });
+}
+
+export function buildRows(all: KcEvent[]): Row[] {
+  const events = withoutQuiet(all);
   const rows: Row[] = [];
   const toolRows = new Map<string, Extract<Row, { kind: "tool" }>>();
   const permissionRows = new Map<string, Extract<Row, { kind: "permission" }>>();

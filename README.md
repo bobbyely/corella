@@ -42,8 +42,11 @@ server; the browser window stays open.
 The other way to get a window of its own: open Corella once, then use your
 browser's **Install** (or **Add to Dock**) option for the page.
 
-Go to **Settings**, press **Check** on your agent, then **New chat**. No agent
-installed yet? The built-in mock agent lets you try it anyway.
+Corella opens on a new chat, with the cursor in the box. It checks your agents
+by itself as it starts, and starts the one you used last in the background
+while you type, so just write and press Enter. No agent installed yet? The
+built-in mock agent lets you try it anyway. If an agent is missing, the agent
+picker says why, and **Settings** shows each check step by step.
 
 ## Which agents
 
@@ -64,6 +67,12 @@ Adding another ACP agent is a config entry, not code. See
   agent's own terminal.
 - **Control mid-turn.** Type while the agent works and your message waits its
   turn, or interrupt. Stop really stops it, with no stray processes.
+- **Ready when you are.** A new chat starts with the agent, model, effort and
+  folder you used last, and the agent starts while you type. Send before it is
+  up and your message simply waits for it.
+- **Effort beside the model.** Where an agent has a reasoning-effort setting,
+  it is a picker next to the model, even when the agent only offers it as a
+  command (Kiro's `/effort`). Changing it never shows up as a chat message.
 - **Switch agent mid-chat.** The next agent is handed the conversation so far.
 - **Schedules.** Run a saved prompt every hour, or daily at a set time.
 - **Rooms.** Two or more agents and you, talking in turns.

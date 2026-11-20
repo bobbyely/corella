@@ -2,7 +2,7 @@ import type { StartOptions } from "@corella/shared";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Chat } from "./Chat.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
-import { NewChat, type AdoptTarget } from "./NewChat.js";
+import type { AdoptTarget } from "./AgentConversations.js";
 import { Rooms, RoomView } from "./Rooms.js";
 import { ScheduleLog, Schedules } from "./Schedules.js";
 import { Setup } from "./Setup.js";
@@ -10,15 +10,17 @@ import { Sidebar, type SidebarApi } from "./Sidebar.js";
 import { useShortcuts } from "./useShortcuts.js";
 
 type View =
-  | { name: "welcome" }
   | { name: "setup" }
   | { name: "schedules" }
   | { name: "schedule"; scheduleId: string }
   | { name: "rooms" }
   | { name: "room"; roomId: string }
-  | { name: "new" }
+  /** A new chat; `n` makes each one a fresh start. */
+  | { name: "new"; n: number }
   | {
       name: "chat";
+      /** Set when it began as new chat `n`: it is the same screen, not a new one. */
+      fromDraft?: number;
       providerId?: string;
       cwd?: string;
       /** Settings and an opening message for a session being started. */
@@ -34,10 +36,12 @@ type View =
 
 /**
  * App shell: a persistent sidebar of conversations beside one main view.
- * Setup is a page you visit, not the landing screen.
+ * It opens on a new chat, ready to type. Settings is a page you visit.
  */
 export function App() {
-  const [view, setView] = useState<View>({ name: "welcome" });
+  const [view, setView] = useState<View>({ name: "new", n: 0 });
+  const drafts = useRef(0);
+  const newChat = useCallback(() => setView({ name: "new", n: ++drafts.current }), []);
   // Bumped whenever a chat starts, so the sidebar refetches its list.
   const [listVersion, setListVersion] = useState(0);
 
@@ -50,12 +54,12 @@ export function App() {
 
   const shortcuts = useMemo(
     () => ({
-      onNewChat: () => setView({ name: "new" }),
+      onNewChat: newChat,
       onFocusSearch: () => sidebarApi.current?.focusSearch(),
       onNextSession: (delta: number) => sidebarApi.current?.step(delta),
-      onEscape: () => setView((v) => (v.name === "chat" ? v : { name: "welcome" })),
+      onEscape: () => setView((v) => (v.name === "chat" || v.name === "new" ? v : { name: "new", n: ++drafts.current })),
     }),
-    [],
+    [newChat],
   );
   useShortcuts(shortcuts);
 
@@ -73,7 +77,8 @@ export function App() {
         api={sidebarApi}
         listVersion={listVersion}
         activeSessionId={view.name === "chat" ? view.sessionId : undefined}
-        onNewChat={() => setView({ name: "new" })}
+        onNewChat={newChat}
+        onAdopt={(providerId, adopt) => setView({ name: "chat", providerId, adopt })}
         onOpenSession={openSession}
         onOpenSetup={() => setView({ name: "setup" })}
         setupActive={view.name === "setup"}
@@ -88,16 +93,12 @@ export function App() {
       />
 
       <main className="main">
-        <ErrorBoundary key={JSON.stringify(view)}>
-        {view.name === "welcome" && (
-          <div className="empty">
-            <h1>Corella</h1>
-            <p className="muted">Start a new chat, or pick one from the left.</p>
-            <button className="hw hot" onClick={() => setView({ name: "new" })}>
-              New chat
-            </button>
-          </div>
-        )}
+        {/* Keyed per view, so an error is not carried to the next one. A new
+            chat keeps its key once it begins: remounting there would close
+            the socket its first message went out on. */}
+        <ErrorBoundary
+          key={view.name === "new" ? `new-${view.n}` : view.name === "chat" && view.fromDraft !== undefined ? `new-${view.fromDraft}` : JSON.stringify(view)}
+        >
 
         {view.name === "setup" && <Setup />}
         {view.name === "schedules" && (
@@ -122,25 +123,17 @@ export function App() {
           />
         )}
 
-        {view.name === "new" && (
-          <NewChat
-            onStart={(providerId, cwd, start) => setView({ name: "chat", providerId, cwd, start })}
-            onAdopt={(providerId, adopt) => setView({ name: "chat", providerId, adopt })}
-            onOpenSession={openSession}
-            onNeedsSetup={() => setView({ name: "setup" })}
-          />
-        )}
-
-        {/* Deliberately unkeyed: `Chat` owns the WebSocket, so remounting it per
-            conversation would close and redial the socket on every switch.
-            Switching is a `subscribe` on the connection we already have. */}
-        {view.name === "chat" && (
+        {(view.name === "chat" || view.name === "new") && (
           <Chat
-            providerId={view.providerId}
-            cwd={view.cwd}
-            start={view.start}
-            sessionId={view.sessionId}
-            adopt={view.adopt}
+            draft={view.name === "new"}
+            onBegan={(sessionId) =>
+              setView((v) => (v.name === "new" ? { name: "chat", sessionId, fromDraft: v.n } : v))
+            }
+            providerId={view.name === "chat" ? view.providerId : undefined}
+            cwd={view.name === "chat" ? view.cwd : undefined}
+            start={view.name === "chat" ? view.start : undefined}
+            sessionId={view.name === "chat" ? view.sessionId : undefined}
+            adopt={view.name === "chat" ? view.adopt : undefined}
             onStarted={refreshList}
             onOpenSetup={() => setView({ name: "setup" })}
             onBack={chatBack}

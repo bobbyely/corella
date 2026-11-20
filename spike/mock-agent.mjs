@@ -12,6 +12,21 @@ const cancelled = new Set();
 /** Set from the client's `initialize`; gates the compaction updates below. */
 let compactionAllowed = false;
 
+/**
+ * With MOCK_EFFORT_COMMAND set, a new session offers `/effort` the way Kiro
+ * does, as soon as it exists, so the effort picker can be tried without Kiro.
+ */
+function announceEffortCommand(client, sessionId) {
+  if (!process.env.MOCK_EFFORT_COMMAND) return sessionId;
+  setTimeout(() => {
+    void client.notify("_kiro.dev/commands/available", {
+      sessionId,
+      commands: [{ name: "/effort", description: "Set thinking effort", meta: { inputType: "selection" } }],
+    });
+  }, 20);
+  return sessionId;
+}
+
 const app = agent({ name: "mock-agent" })
   // ACP sends cancellation as a notification, not a request.
   .onNotification("session/cancel", ({ params }) => {
@@ -35,8 +50,10 @@ const app = agent({ name: "mock-agent" })
       authMethods: [],
     };
   })
-  .onRequest("session/new", () => ({
-    sessionId: `mock-session-${++seq}`,
+  // MOCK_SESSION_DELAY_MS stands in for a real agent's slow start, so a
+  // message sent before the agent is up can be tried.
+  .onRequest("session/new", async ({ client }) => (await sleep(Number(process.env.MOCK_SESSION_DELAY_MS ?? 0)), {
+    sessionId: announceEffortCommand(client, `mock-session-${++seq}`),
     // Two shapes the composer must cope with: the legacy modes state, and the
     // newer generic config options.
     modes: {
@@ -142,6 +159,13 @@ const app = agent({ name: "mock-agent" })
   .onRequest("session/prompt", async ({ params, client }) => {
     const notify = (update) =>
       client.notify("session/update", { sessionId: params.sessionId, update });
+
+    // Kiro's effort command, answered at once like Kiro does.
+    const effort = /^\/effort (\S+)$/.exec(params.prompt?.[0]?.text ?? "");
+    if (effort) {
+      await notify({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: `Effort set to ${effort[1]}` } });
+      return { stopReason: "end_turn" };
+    }
 
     // A long turn, so cancellation has something to interrupt.
     if (params.prompt?.[0]?.text === "long") {

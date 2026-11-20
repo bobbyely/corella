@@ -57,8 +57,14 @@ export class SessionManager {
       if (released) return;
       released = true;
       const left = (this.viewers.get(id) ?? 1) - 1;
-      if (left > 0) this.viewers.set(id, left);
-      else this.viewers.delete(id);
+      if (left > 0) return void this.viewers.set(id, left);
+      this.viewers.delete(id);
+      // A new chat left before anything was said: its agent has no more use.
+      const draft = this.live.get(id);
+      if (draft?.isDraft) {
+        this.live.delete(id);
+        draft.close();
+      }
     };
   }
 
@@ -113,9 +119,9 @@ export class SessionManager {
     broadcast();
   }
 
-  async open(provider: ProviderConfig, cwd?: string, start?: StartOptions): Promise<Session> {
+  async open(provider: ProviderConfig, cwd?: string, start?: StartOptions, draft = false): Promise<Session> {
     const session = await this.staleOnFailure(provider, () =>
-      Session.open(randomUUID(), provider, this.store, cwd, start),
+      Session.open(randomUUID(), provider, this.store, cwd, start, draft),
     );
     this.track(session);
     return session;

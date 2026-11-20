@@ -128,9 +128,19 @@ export function useChat() {
     };
   }, [connect]);
 
+  /**
+   * Starts an agent. `draft` is a new chat nobody has written in yet; see the
+   * `open` message. The chat on screen is let go at once, so nothing typed
+   * meanwhile is sent to it by mistake.
+   */
   const openSession = useCallback(
-    (providerId: string, cwd?: string, start?: StartOptions) =>
-      send({ type: "open", providerId, ...(cwd ? { cwd } : {}), ...(start ? { start } : {}) }),
+    (providerId: string, cwd?: string, start?: StartOptions, draft = false) => {
+      sessionId.current = null;
+      setSession(null);
+      setEvents([]);
+      setError(null);
+      send({ type: "open", providerId, ...(cwd ? { cwd } : {}), ...(start ? { start } : {}), ...(draft ? { draft } : {}) });
+    },
     [send],
   );
 
@@ -272,7 +282,7 @@ export function useChat() {
   );
 
   const prompt = useCallback(
-    (text: string, images: Array<{ mime: string; data: string }> = [], files: string[] = []) => {
+    (text: string, images: Array<{ mime: string; data: string }> = [], files: string[] = [], quiet = false) => {
       if (!sessionId.current) return;
       send({
         type: "prompt",
@@ -280,6 +290,7 @@ export function useChat() {
         text,
         ...(images.length > 0 ? { images } : {}),
         ...(files.length > 0 ? { files } : {}),
+        ...(quiet ? { quiet } : {}),
       });
     },
     [send],

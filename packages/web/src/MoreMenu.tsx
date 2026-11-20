@@ -2,7 +2,8 @@
 // header as a row of buttons (Files, Export, the games) now live here, so the
 // header holds only what you look at often. Rendered by Chat.tsx; holds only
 // whether it is open. Keyboard: Enter or Space opens it, arrows move, Escape
-// closes and gives focus back to the button.
+// closes and gives focus back to the button. The new chat's folder picker is
+// the same menu with its own button and a heading (Composer.tsx).
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "./icons.js";
 
@@ -13,14 +14,32 @@ export interface MenuItem {
   href?: string;
   download?: boolean;
   onSelect?: () => void;
+  /** Ticked: the value in use, for a menu that picks one. */
+  checked?: boolean;
+  /** A path or other literal, set in the mono face. */
+  mono?: boolean;
+  /** A rule above it, setting it apart from the list. */
+  separated?: boolean;
+  /** The whole of a label that was shortened, such as a folder's path. */
+  title?: string;
 }
 
-export function MoreMenu({ items }: { items: MenuItem[] }) {
+export function MoreMenu({
+  items,
+  trigger,
+  heading,
+}: {
+  items: MenuItem[];
+  /** The button, when it is not the plain "···". */
+  trigger?: { content: ReactNode; className: string; label: string };
+  heading?: string;
+}) {
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
 
-  const entries = () => Array.from(menu.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? []);
+  const entries = () =>
+    Array.from(menu.current?.querySelectorAll<HTMLElement>("[role=menuitem], [role=menuitemradio]") ?? []);
 
   useEffect(() => {
     if (!open) return;
@@ -59,17 +78,18 @@ export function MoreMenu({ items }: { items: MenuItem[] }) {
     <div className="more">
       <button
         ref={button}
-        className="plain icon"
-        aria-label="More"
-        title="More"
+        className={trigger?.className ?? "plain icon"}
+        aria-label={trigger?.label ?? "More"}
+        title={trigger?.label ?? "More"}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        <Icon name="more" />
+        {trigger?.content ?? <Icon name="more" />}
       </button>
       {open && (
-        <div className="more-menu" role="menu" ref={menu} onKeyDown={onKeyDown}>
+        <div className="more-menu" role="menu" ref={menu} onKeyDown={onKeyDown} aria-label={heading}>
+          {heading && <h2 className="rule-label">{heading}</h2>}
           {items.map((item) =>
             item.href ? (
               <a
@@ -85,14 +105,18 @@ export function MoreMenu({ items }: { items: MenuItem[] }) {
               </a>
             ) : (
               <button
-                key={item.label}
-                role="menuitem"
+                key={item.title ?? item.label}
+                title={item.title}
+                role={item.checked === undefined ? "menuitem" : "menuitemradio"}
+                aria-checked={item.checked}
                 tabIndex={-1}
+                className={`${item.mono ? "mono" : ""} ${item.separated ? "separated" : ""}`}
                 onClick={() => {
                   setOpen(false);
                   item.onSelect?.();
                 }}
               >
+                {item.checked !== undefined && <span className="menu-check">{item.checked && <Icon name="check" size={14} />}</span>}
                 {item.icon}
                 {item.label}
               </button>

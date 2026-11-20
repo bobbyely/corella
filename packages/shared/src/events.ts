@@ -14,8 +14,11 @@ export interface KcEventBase {
 
 export type KcEvent = KcEventBase &
   (
-    /** `attachments` holds ids, not bytes — see the attachments table. `files` are `@` mentions, sent as resource links. */
-    | { type: "user_message"; text: string; attachments?: Attachment[]; files?: FileMention[] }
+    /**
+     * `attachments` holds ids, not bytes — see the attachments table. `files` are `@` mentions, sent as
+     * resource links. `quiet` marks a setting sent as a slash command: the chat hides it and its reply.
+     */
+    | { type: "user_message"; text: string; attachments?: Attachment[]; files?: FileMention[]; quiet?: boolean }
     /** Coalesced agent text. Deltas are buffered before append — never one event per token. */
     | { type: "agent_text"; text: string }
     /** Any non-text ACP session update we do not model explicitly. */

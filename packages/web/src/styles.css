@@ -471,8 +471,6 @@ a { color: inherit; }
 .banner-body { min-width: 0; }
 .banner button { flex-shrink: 0; }
 
-.empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-3); }
-.empty h1 { margin: 0; font-size: var(--fs-xl); letter-spacing: 0.02em; }
 
 /* ---------- setup ---------- */
 .cards { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-5); }
@@ -669,7 +667,7 @@ kbd {
   border-radius: var(--r-md);
   box-shadow: 0 0 0 var(--rule-w) var(--line), 0 10px 28px rgb(0 0 0 / 0.16);
 }
-.more-menu [role="menuitem"] {
+.more-menu :is([role="menuitem"], [role="menuitemradio"]) {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -682,8 +680,35 @@ kbd {
   text-decoration: none;
   text-align: left;
 }
-.more-menu [role="menuitem"]:hover, .more-menu [role="menuitem"]:focus-visible { background: var(--ground); outline: none; }
+.more-menu :is([role="menuitem"], [role="menuitemradio"]):is(:hover, :focus-visible) { background: var(--ground); outline: none; }
 .more-menu [role="menuitem"] .icon { color: var(--muted); }
+.more-menu > .rule-label { margin: 4px 4px 6px; }
+.more-menu .mono { font-family: var(--mono); font-size: var(--fs-sm); }
+.more-menu .separated { margin-top: 6px; position: relative; padding-left: 34px; }
+.more-menu .separated::before { content: ""; position: absolute; left: 0; right: 0; top: -4px; height: var(--rule-w); background: var(--line); }
+.menu-check { display: inline-flex; width: 14px; color: var(--text); }
+.composer .more-menu { left: 0; right: auto; min-width: 300px; max-width: min(90vw, 520px); }
+
+/* The new chat: the box in the middle of the page until something is said,
+   and the lamp under it saying whether the agent is up. */
+.chat.blank { justify-content: center; }
+.chat.blank .transcript { display: none; }
+.chat.blank .chat-head { position: absolute; top: 0; left: 0; right: 0; }
+.chat.blank .composer { padding-left: 0; }
+.lamp-line { display: flex; align-items: center; gap: 10px; max-width: 860px; width: 100%; margin: -10px auto 0; padding: 0 28px 20px; font-size: var(--fs-md); color: var(--muted); }
+.chat:not(.blank) > .lamp-line { padding-left: calc(28px + 82px); }
+.lamp-line .lamp { color: var(--onair); margin-left: 4px; }
+.lamp-line .lamp.starting { animation: lamp 1.2s ease-in-out infinite; }
+.lamp-line .lamp.off { color: var(--muted); }
+.lamp-line .link { margin-left: 4px; }
+.transcript .lamp-line { margin: 0; padding: 2px 0; }
+button.link { padding: 0; border: none; background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; font: inherit; }
+.pick.folder { box-shadow: inset 0 0 0 var(--rule-w) var(--line); }
+.pick.folder span { max-width: 18em; overflow: hidden; text-overflow: ellipsis; }
+.folder-input { cursor: text; width: 20em; max-width: 100%; color: var(--text); background: var(--bg); box-shadow: inset 0 0 0 var(--rule-w) var(--onair); font: 400 var(--fs-sm)/1 var(--mono); }
+.folder-input:focus { outline: none; }
+.agent-conversations { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.agent-conversations .chip { align-self: flex-start; }
 
 /* The glass readout: the one screen in the room, the same in every theme. */
 .readout {

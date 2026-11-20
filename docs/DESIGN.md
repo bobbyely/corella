@@ -192,9 +192,27 @@ history is captured exactly once. See
 [PROTOCOL.md](PROTOCOL.md#an-adopted-conversation-is-the-one-case-where-the-replay-is-kept).
 
 **The wrinkle:** models are only known *after* `session/new`, so the picker
-cannot be populated before a session exists. Hence **draft sessions** — picking
-a provider creates one immediately so the pickers can populate; it is promoted
-to `active` on first message, and drafts are garbage-collected on startup.
+cannot be populated before a session exists. Hence **draft sessions**. The app
+opens on a new chat with the agent, folder and settings last used, and starts
+that agent at once (`open` with `draft: true`), so the pickers fill and the
+first message goes without a wait. A draft writes nothing: its events are held
+in memory and it is not listed. The first message sent promotes it — the held
+log is written, then the row — at the moment the message is queued, not when
+its turn runs, so a page that sends and closes its socket at once cannot lose
+it. A draft nobody is viewing any more (another chat opened, the tab closed)
+is closed by `SessionManager.view`, leaving no trace. A message sent before
+the agent is up waits in the browser (`outbox.ts`): there is no conversation on
+the server to hold it until `session_opened`, and it goes back into the box if
+the agent fails to start.
+
+**Settings the agent offers only as a slash command** (Kiro's `/effort`) are
+sent as *quiet* turns: a prompt with `quiet: true` runs as an ordinary turn,
+and its `user_message` carries `quiet`. The browser hides that turn and the
+agent's answer; it does not name the chat, does not count as working, and does
+not promote a draft. An opening that is only a slash command is sent quietly
+the same way, which is how the effort picker's last choice reaches every new
+chat. The log still holds it — nothing is hidden from the record, only from the
+transcript.
 
 ## Schedules: a timer over ordinary sessions
 
@@ -376,12 +394,20 @@ CREATE TABLE provider_checks (
 );
 ```
 
-A provider must be `ok` before it appears in the new-chat provider list. If a
+**Checks run by themselves.** `autoCheck.ts` checks every provider when the
+server starts, and again whenever one is added or its command, arguments,
+environment or folder change — noticed when the providers list is read, since
+`config.json` is read afresh each time. Checks run in the background; the list
+marks a provider `checking`, and the page asks again until none are. Check in
+Settings remains, for seeing why one fails.
+
+A provider must be `ok` before it can be chosen for a new chat. If a
 runtime failure happens anyway — the binary was removed, a token expired — the
 provider is marked `stale` and the error links back to the setup page. Verified
 is a cached fact with a timestamp, not a permanent guarantee.
 
-First run with nothing configured lands on setup.
+A provider that is not `ok` is still listed in the new chat's agent picker,
+greyed, with its check's message, so a missing agent is not a mystery.
 
 ## Errors and debugging
 

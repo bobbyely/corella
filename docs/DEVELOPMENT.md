@@ -116,6 +116,9 @@ The mock plays the README screenshot's chat when a message starts with
 `Add a /health endpoint`: a read, an edit, a test run and a permission prompt,
 at the screenshot's timing (set `MOCK_DEMO_PACE=0.2` for five times faster).
 `MOCK_LONG_STEP_MS` stretches its `long` turn, for a chat that stays On air.
+`MOCK_SESSION_DELAY_MS` slows its start, to try sending before the agent is up,
+and `MOCK_EFFORT_COMMAND=1` makes it offer Kiro's `/effort` command, for the
+effort picker.
 
 Adding another is a config entry, not code:
 [PROVIDERS.md](PROVIDERS.md) has the recipe and an honest table of

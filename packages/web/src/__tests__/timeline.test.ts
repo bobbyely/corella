@@ -232,6 +232,19 @@ describe("an adopted conversation", () => {
     assert.deepEqual(rows.map((r) => r.kind), ["command", "user", "user", "user"]);
     assert.equal(rows[0]!.kind === "command" && rows[0]!.text, "/effort high");
   });
+
+  it("hides a quiet command and the agent's answer to it, but not an error", () => {
+    const rows = buildRows([
+      ev({ type: "user_message", text: "/effort max", quiet: true } as never, 1),
+      ev({ type: "turn_start" } as never, 2),
+      ev({ type: "agent_text", text: "Effort set to max" } as never, 3),
+      ev({ type: "error", error: { code: "RPC_ERROR", message: "nope" } } as never, 4),
+      ev({ type: "turn_end", stopReason: "end_turn" } as never, 5),
+      ev({ type: "user_message", text: "fix the parser" } as never, 6),
+      ev({ type: "agent_text", text: "Fixed" } as never, 7),
+    ]);
+    assert.deepEqual(rows.map((r) => r.kind), ["error", "user", "agent"]);
+  });
 });
 
 describe("languageFor", () => {

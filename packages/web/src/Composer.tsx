@@ -1,11 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CommandOption, ConfigOption, FileEntry, SessionSummary, SlashCommand } from "@corella/shared";
+import type { CommandOption, ConfigOption, FileEntry, ProviderView, SessionSummary, SlashCommand } from "@corella/shared";
 import { fetchDirectory } from "./api.js";
 import { commonPrefix, complete } from "./commands.js";
 import { completeMention, mentionAt, mentionPath, mentionedIn, splitMention } from "./mentions.js";
 import { useReadyProviders } from "./useReadyProviders.js";
 import { fileToImage, type PendingImage } from "./images.js";
 import { Icon } from "./icons.js";
+import { MoreMenu } from "./MoreMenu.js";
+
+/**
+ * A new chat's own pickers. The agent and the folder are chosen here before
+ * anything is said, and changing either starts a fresh agent rather than
+ * moving a conversation.
+ */
+export interface DraftChoice {
+  /** Every configured agent, so one that failed its check can say why. */
+  providers: ProviderView[] | null;
+  providerId: string | null;
+  onProvider: (id: string) => void;
+  folders: string[];
+  cwd: string;
+  onFolder: (path: string) => void;
+}
+
+/** The last two parts of a path (`project/api`): the browser does not know the home folder. */
+export function shortFolder(path: string): string {
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  return parts.length <= 2 ? path : parts.slice(-2).join("/");
+}
+
+/**
+ * Effort sits beside the model. Recognised by what was advertised: ACP's
+ * `thought_level` category, or a name that says effort (Kiro's `/effort`,
+ * an `effortLevel` option).
+ */
+const isEffort = (id: string, category?: string): boolean => category === "thought_level" || /effort/i.test(id);
 
 /**
  * The message box and everything that belongs to it.
@@ -31,7 +60,11 @@ export function Composer({
   onUnqueue,
   onEditQueued,
   onMoveQueued,
+  onQuietCommand,
   roots,
+  draft: choice,
+  autoFocus = false,
+  seed,
 }: {
   session: SessionSummary | null;
   busy: boolean;
@@ -52,8 +85,15 @@ export function Composer({
   onUnqueue: (index: number) => void;
   onEditQueued: (index: number, text: string) => void;
   onMoveQueued: (from: number, to: number) => void;
+  /** Sends a setting the agent offers only as a slash command, without it showing as said. */
+  onQuietCommand: (text: string) => void;
+  /** Set on a new chat; see `DraftChoice`. */
+  draft?: DraftChoice | undefined;
+  autoFocus?: boolean;
+  /** Text to start the box with: a first message given back when its agent failed to start. */
+  seed?: string | undefined;
 }) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(seed ?? "");
   const [images, setImages] = useState<PendingImage[]>([]);
   /** Index of the highlighted command while the slash picker is open. */
   const [commandIndex, setCommandIndex] = useState(0);
@@ -223,8 +263,11 @@ export function Composer({
         ref={box}
         value={draft}
         aria-label="Message"
+        autoFocus={autoFocus}
         placeholder={
-          busy
+          choice
+            ? "What should we work on?"
+            : busy
             ? "Type to queue for when this turn ends…"
             : canAttach
               ? "Reply, or type @ to add a file. Paste or drop an image"
@@ -274,27 +317,36 @@ export function Composer({
           <button className="pick icon" onClick={startMention} aria-label="Add a file" title="Add a file (@)" disabled={!session}>
             <Icon name="at" />
           </button>
-          {session?.live && <ProviderPicker session={session} busy={busy} onSwitch={onSwitchProvider} />}
-          {session?.configOptions.map((option) => (
-            <ConfigPicker
-              key={option.id}
-              option={option}
-              onChange={(value) => onSetConfigOption(option.id, value)}
-            />
-          ))}
-          {session && pickableCommands(session).map((command) => (
-            <CommandPicker
-              key={command.name}
-              command={command}
-              options={commandOptions[`${command.name}\u0000`]}
-              onOpen={() => requestCommandOptions(command.name, "")}
-              onChoose={(value) => {
-                const opening = `/${command.name} ${value}`;
-                onPrompt(opening, [], []);
-                onRememberOpening(session.providerId, opening);
-              }}
-            />
-          ))}
+          {choice ? (
+            <DraftAgentPicker draft={choice} />
+          ) : (
+            session?.live && <ProviderPicker session={session} busy={busy} onSwitch={onSwitchProvider} />
+          )}
+          {session &&
+            pickers(session).map((picker) =>
+              picker.kind === "option" ? (
+                <ConfigPicker
+                  key={picker.option.id}
+                  option={picker.option}
+                  onChange={(value) => onSetConfigOption(picker.option.id, value)}
+                />
+              ) : (
+                <CommandPicker
+                  key={picker.command.name}
+                  command={picker.command}
+                  options={commandOptions[`${picker.command.name}\u0000`]}
+                  onOpen={() => requestCommandOptions(picker.command.name, "")}
+                  onChoose={(value) => {
+                    // Quietly: a setting, not something said. Remembered, so
+                    // the next new chat on this agent starts with it too.
+                    const command = `/${picker.command.name} ${value}`;
+                    onQuietCommand(command);
+                    onRememberOpening(session.providerId, command);
+                  }}
+                />
+              ),
+            )}
+          {choice && <FolderPicker draft={choice} />}
           {session?.live && (
             <label className="pick toggle" title="Approve the agent's tool calls without asking">
               <Icon name="shield" size={15} />
@@ -327,7 +379,7 @@ export function Composer({
           <button
             className="hw hot send"
             onClick={() => submit()}
-            disabled={empty || !session}
+            disabled={empty || (!session && !choice)}
             aria-label={busy ? "Queue" : "Send"}
             title={busy ? "Queue for when this turn ends (Enter)" : "Send (Enter)"}
           >
@@ -421,9 +473,131 @@ function pickableCommands(session: SessionSummary): SlashCommand[] {
   for (const option of session.configOptions) {
     covered.add(option.id);
     if (option.category) covered.add(option.category);
+    if (isEffort(option.id, option.category)) covered.add("effort");
   }
   if (covered.has("mode")) covered.add("agent");
   return session.commands.filter((c) => c.selection && !covered.has(c.name));
+}
+
+type Picker = { kind: "option"; option: ConfigOption } | { kind: "command"; command: SlashCommand };
+
+/** The row's settings in reading order: the model, then effort, then the rest as advertised. */
+function pickers(session: SessionSummary): Picker[] {
+  const all: Picker[] = [
+    ...session.configOptions.map((option) => ({ kind: "option" as const, option })),
+    ...pickableCommands(session).map((command) => ({ kind: "command" as const, command })),
+  ];
+  const rank = (p: Picker) =>
+    p.kind === "option" && p.option.category === "model"
+      ? 0
+      : isEffort(p.kind === "option" ? p.option.id : p.command.name, p.kind === "option" ? p.option.category : undefined)
+        ? 1
+        : 2;
+  // Array sort is stable, so equal ranks keep the agent's own order.
+  return all.sort((a, b) => rank(a) - rank(b));
+}
+
+/**
+ * The new chat's agent. Every configured agent is listed; one that failed its
+ * check, or is still being checked, is shown but cannot be chosen, and says
+ * why, so a missing agent is not a mystery.
+ */
+function DraftAgentPicker({ draft }: { draft: DraftChoice }) {
+  const providers = draft.providers ?? [];
+  const reason = (p: ProviderView): string | null =>
+    p.lastCheck?.status === "ok"
+      ? null
+      : p.checking
+        ? "checking…"
+        : (p.lastCheck?.error?.message ?? (p.lastCheck ? "failed its check" : "not checked yet"));
+  return (
+    <label className="pick" title="The agent this chat starts with. Each is checked when Corella starts; Settings says more.">
+      <select aria-label="Agent" value={draft.providerId ?? ""} onChange={(e) => draft.onProvider(e.target.value)}>
+        {!draft.providerId && <option value="">No agent ready</option>}
+        {providers.map((p) => {
+          const why = reason(p);
+          return (
+            <option key={p.id} value={p.id} disabled={why !== null} title={why ?? undefined}>
+              {why ? `${p.name} — ${why}` : p.name}
+            </option>
+          );
+        })}
+      </select>
+      <Icon name="chev" size={14} />
+    </label>
+  );
+}
+
+/**
+ * The new chat's folder: the ones worked in before, most recent first, and
+ * "Choose another…" for a path not among them. Typed, because a browser page
+ * cannot open the system's folder chooser and learn the path.
+ */
+function FolderPicker({ draft }: { draft: DraftChoice }) {
+  const [typing, setTyping] = useState(false);
+  const [path, setPath] = useState("");
+  if (typing) {
+    const done = (commit: boolean) => {
+      setTyping(false);
+      if (commit && path.trim()) draft.onFolder(path.trim());
+    };
+    return (
+      <input
+        className="pick folder-input"
+        aria-label="Folder path"
+        autoFocus
+        value={path}
+        placeholder="/path/to/project"
+        spellCheck={false}
+        onChange={(e) => setPath(e.target.value)}
+        onBlur={() => done(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            done(true);
+          }
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            done(false);
+          }
+        }}
+      />
+    );
+  }
+  const folders = draft.folders.includes(draft.cwd) || !draft.cwd ? draft.folders : [draft.cwd, ...draft.folders];
+  return (
+    <MoreMenu
+      heading="Recent folders"
+      trigger={{
+        className: "pick folder",
+        label: `Folder: ${draft.cwd}`,
+        content: (
+          <>
+            <Icon name="folder" size={15} />
+            <span>{draft.cwd ? shortFolder(draft.cwd) : "Choose a folder"}</span>
+            <Icon name="chev" size={14} />
+          </>
+        ),
+      }}
+      items={[
+        ...folders.map((f) => ({
+          label: shortFolder(f),
+          title: f,
+          checked: f === draft.cwd,
+          mono: true,
+          onSelect: () => draft.onFolder(f),
+        })),
+        {
+          label: "Choose another…",
+          separated: true,
+          onSelect: () => {
+            setPath(draft.cwd);
+            setTyping(true);
+          },
+        },
+      ]}
+    />
+  );
 }
 
 /**
@@ -454,7 +628,7 @@ function CommandPicker({
   const current = chosen ?? options?.find((o) => o.current)?.value ?? "";
   return (
     <label className="pick" title={`${command.description} (/${command.name})`}>
-      <span className="pick-label">{command.name}:</span>
+      <span className="pick-label">{command.name.charAt(0).toUpperCase() + command.name.slice(1)}:</span>
       <select
         aria-label={command.name}
         value={current}

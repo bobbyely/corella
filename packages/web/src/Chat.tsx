@@ -10,7 +10,7 @@ import type {
   SessionUsage,
   StartOptions,
 } from "@corella/shared";
-import { Composer } from "./Composer.js";
+import { Composer, shortFolder } from "./Composer.js";
 import { KSpinner } from "./KSpinner.js";
 import { ChangesPane } from "./ChangesPane.js";
 import { FilesPane } from "./FilesPane.js";
@@ -33,6 +33,8 @@ import {
   type ToolDiff,
 } from "./timeline.js";
 import { useChat } from "./useChat.js";
+import { Outbox, type Outgoing } from "./outbox.js";
+import { isReady, useProviders } from "./useReadyProviders.js";
 
 /** Rows rendered initially, and how many more each "show earlier" adds. */
 const INITIAL_ROWS = 60;
@@ -48,6 +50,8 @@ export function Chat({
   onOpenSetup,
   onBack,
   onPlay,
+  draft = false,
+  onBegan,
 }: {
   providerId?: string;
   cwd?: string;
@@ -61,6 +65,13 @@ export function Chat({
   onBack?: (() => void) | undefined;
   /** Opens the word games, which live with the sidebar. */
   onPlay?: () => void;
+  /**
+   * A new chat: opens on the message box, with the agent, folder and settings
+   * last used, and starts the agent in the background while you type.
+   */
+  draft?: boolean;
+  /** The new chat's first message was sent: it is a conversation now. */
+  onBegan?: (sessionId: string) => void;
 }) {
   const {
     connected,
@@ -85,7 +96,32 @@ export function Chat({
     prompt,
     interrupt,
     cancel,
+    workspaces,
+    currentWorkspace,
+    lastProviderId,
+    listWorkspaces,
   } = useChat();
+
+  // A new chat's choices, seeded from what was used last: the agent of the
+  // latest chat, else the first ready one, and the latest folder.
+  const { providers: allProviders } = useProviders();
+  const [draftProvider, setDraftProvider] = useState<string | null>(null);
+  const [draftCwd, setDraftCwd] = useState("");
+  useEffect(() => {
+    if (draft && connected) listWorkspaces();
+  }, [draft, connected, listWorkspaces]);
+  useEffect(() => {
+    if (!draft || draftProvider || !allProviders) return;
+    const ready = allProviders.filter(isReady);
+    // Agents are checked as the server starts, so none may be ready yet;
+    // the list is fetched again until they are, and this runs again then.
+    const pick = ready.find((p) => p.id === lastProviderId) ?? ready[0];
+    if (pick) setDraftProvider(pick.id);
+  }, [draft, draftProvider, allProviders, lastProviderId]);
+  useEffect(() => {
+    if (draft && !draftCwd && workspaces !== null) setDraftCwd(workspaces[0] ?? currentWorkspace ?? "");
+  }, [draft, draftCwd, workspaces, currentWorkspace]);
+  const draftAgent = allProviders?.find((p) => p.id === draftProvider);
 
   // The `@` picker completes against the conversation's roots. Keyed on the
   // joined string so the array is stable between events that do not change it,
@@ -115,17 +151,67 @@ export function Chat({
   // the target changing rather than by mounting. A dropped socket re-subscribes
   // itself from its high-water mark, which is why this does not run again on
   // reconnect.
+  const liveId = session?.id;
+  // The opening a new chat starts with: the effort command last chosen, sent
+  // quietly by the server. Read through a ref so the list refetching while
+  // agents are checked does not restart the agent.
+  const draftOpening = useRef<string | undefined>(undefined);
+  draftOpening.current = draftAgent?.defaults.opening;
   useEffect(() => {
     if (!connected) return;
-    const target =
-      sessionId ??
-      (adopt ? `adopt:${providerId}:${adopt.agentSessionId}` : `new:${providerId}:${cwd}`);
-    if (attached.current === target) return;
+    // The new chat just began: it is already the one on screen.
+    if (sessionId && liveId === sessionId) {
+      attached.current = sessionId;
+      return;
+    }
+    const target = draft
+      ? draftProvider && draftCwd
+        ? `draft:${draftProvider}:${draftCwd}`
+        : null
+      : (sessionId ?? (adopt ? `adopt:${providerId}:${adopt.agentSessionId}` : `new:${providerId}:${cwd}`));
+    if (!target || attached.current === target) return;
     attached.current = target;
-    if (sessionId) attachSession(sessionId);
+    if (draft && draftProvider) {
+      const opening = draftOpening.current;
+      openSession(draftProvider, draftCwd, opening ? { opening } : {}, true);
+    } else if (sessionId) attachSession(sessionId);
     else if (providerId && adopt) adoptSession(providerId, adopt);
     else if (providerId) openSession(providerId, cwd, start);
-  }, [connected, openSession, adoptSession, attachSession, providerId, cwd, start, sessionId, adopt]);
+  }, [connected, openSession, adoptSession, attachSession, providerId, cwd, start, sessionId, adopt, draft, draftProvider, draftCwd, liveId]);
+
+  // A message sent before the new chat's agent is up waits here, shown under
+  // "Starting…", and goes once it is. Never sent twice, never dropped: if the
+  // agent fails to start, it goes back into the box.
+  const outbox = useRef(new Outbox());
+  const [waiting, setWaiting] = useState<Outgoing | null>(null);
+  const [restored, setRestored] = useState<{ text: string; n: number } | null>(null);
+  const live = session?.live === true;
+  const send = useCallback(
+    (text: string, images: Outgoing["images"], files: string[]) => {
+      if (draft && !live) {
+        outbox.current.hold({ text, images, files });
+        setWaiting(outbox.current.waiting);
+        return;
+      }
+      prompt(text, images, files);
+      if (draft && liveId) onBegan?.(liveId);
+    },
+    [draft, live, liveId, prompt, onBegan],
+  );
+  useEffect(() => {
+    if (!draft || !live || !liveId) return;
+    outbox.current.deliver((m) => {
+      prompt(m.text, m.images, m.files);
+      onBegan?.(liveId);
+    });
+  }, [draft, live, liveId, prompt, onBegan]);
+  useEffect(() => {
+    if (!draft || !error) return;
+    const back = outbox.current.takeBack();
+    setWaiting(null);
+    if (back) setRestored((r) => ({ text: back.text, n: (r?.n ?? 0) + 1 }));
+  }, [draft, error]);
+  const quietCommand = useCallback((text: string) => prompt(text, [], [], true), [prompt]);
 
   const allRows = useMemo(() => buildRows(events), [events]);
   const [windowSize, setWindowSize] = useState(INITIAL_ROWS);
@@ -198,10 +284,51 @@ export function Chat({
   const busy = session?.busy ?? false;
   // A session read back from disk has no agent attached until it is resumed.
   const readOnly = session !== null && !session.live;
+  // Shown until the server's copy of it arrives in the log.
+  const held = waiting && !rows.some((r) => r.kind === "user" || r.kind === "command") ? waiting : null;
+  // The new chat's empty state: the box in the middle of the page.
+  const blank = draft && !held;
+
+  // The composer keeps its key when the new chat becomes a conversation, so
+  // focus and anything typed after the first message stay put.
+  const composerKey = useRef("new");
+  if (draft) composerKey.current = `draft-${restored?.n ?? 0}`;
+  else if (!composerKey.current.startsWith("draft") || session?.id !== sessionId) composerKey.current = session?.id ?? "new";
+
+  const agentName = draftAgent?.name ?? session?.providerName;
+  const lamp = !draft ? null : error ? null : !draftProvider ? (
+    <p className="lamp-line">
+      <span className="lamp off" aria-hidden />
+      {allProviders?.some((p) => p.checking) ? "Checking your agents…" : "No agent is ready."}
+      {!allProviders?.some((p) => p.checking) && onOpenSetup && (
+        <button className="link" onClick={onOpenSetup}>
+          See why in Settings
+        </button>
+      )}
+    </p>
+  ) : live ? (
+    <p className="lamp-line" role="status">
+      <span className="lamp" aria-hidden />
+      {agentName} is ready
+    </p>
+  ) : (
+    <p className="lamp-line" role="status">
+      <span className="lamp starting" aria-hidden />
+      Starting {agentName}…
+    </p>
+  );
 
   return (
     <div className="chat-row">
-      <div className="chat">
+      <div className={`chat ${blank ? "blank" : ""}`}>
+        {draft ? (
+          <header className="chat-head">
+            <div className="chat-title">
+              <h1>New chat</h1>
+              <p className="chat-sub">Starts with what you used last</p>
+            </div>
+          </header>
+        ) : (
         <header className="chat-head">
           {onBack && (
             <button className="plain" onClick={onBack} title="Back to where this chat was opened from">
@@ -254,12 +381,24 @@ export function Chat({
             />
           )}
         </header>
+        )}
 
         <div className="transcript" ref={transcript} onScroll={onScroll}>
           {/* Inner wrapper caps line length; alignment happens inside it, so
               user messages can still sit right while the column stays centred. */}
           <div className="transcript-inner">
-            {!session && <p className="muted">{sessionId ? "Loading conversation…" : "Starting agent…"}</p>}
+            {!session && !draft && <p className="muted">{sessionId ? "Loading conversation…" : "Starting agent…"}</p>}
+            {held && (
+              <Step time={undefined}>
+                <Message
+                  row={{ kind: "user", seq: -1, text: held.text, attachments: [], files: [] }}
+                  onPermission={answerPermission}
+                  onElicitation={answerElicitation}
+                  handoffFor={handoffFor}
+                />
+              </Step>
+            )}
+            {held && <Step time={undefined}>{lamp}</Step>}
             {hidden > 0 && (
               <button className="show-earlier" onClick={() => setWindowSize((n) => n + MORE_ROWS)}>
                 Show earlier messages ({hidden} hidden)
@@ -327,12 +466,27 @@ export function Chat({
           <Composer
             // Keyed so a half-typed message and its pasted images do not follow
             // the reader into the next conversation.
-            key={session?.id ?? "new"}
+            key={composerKey.current}
             session={session}
+            draft={
+              draft
+                ? {
+                    providers: allProviders,
+                    providerId: draftProvider,
+                    onProvider: setDraftProvider,
+                    folders: workspaces ?? [],
+                    cwd: draftCwd,
+                    onFolder: setDraftCwd,
+                  }
+                : undefined
+            }
+            autoFocus={draft}
+            seed={draft ? restored?.text : undefined}
+            onQuietCommand={quietCommand}
             busy={busy}
             commandOptions={commandOptions}
             requestCommandOptions={requestCommandOptions}
-            onPrompt={prompt}
+            onPrompt={send}
             onInterrupt={interrupt}
             onCancel={cancel}
             onSetAutoApprove={setAutoApprove}
@@ -345,6 +499,7 @@ export function Chat({
             onMoveQueued={moveQueued}
           />
         )}
+        {!held && lamp}
       </div>
       {pane && session && (
         <SidePane
@@ -397,11 +552,6 @@ function isOpenAsk(row: Row): boolean {
 }
 
 /** The last two parts of a path: enough to know the project, and nothing personal. */
-function shortFolder(path: string): string {
-  const parts = path.split(/[\\/]/).filter(Boolean);
-  return parts.length <= 2 ? path : parts.slice(-2).join("/");
-}
-
 /**
  * One transcript row.
  *

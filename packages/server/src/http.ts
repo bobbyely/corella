@@ -12,6 +12,7 @@ import type {
 } from "@corella/shared";
 import { listAgentSessions } from "./agentSessions.js";
 import { authorized, loadToken, loginCookie, sameToken } from "./auth.js";
+import { AutoCheck } from "./autoCheck.js";
 import { checkProvider } from "./check.js";
 import { exportFilename, toMarkdown } from "./export.js";
 import { listDirectory, rawFile, readText, validateRoot } from "./files.js";
@@ -111,6 +112,15 @@ export function startServer(port: number, webRoot: string | null): Server {
   scheduler.start();
   const rooms = new RoomManager(store, sessions, () => loadConfig().providers);
   rooms.start();
+  // Every agent is checked as the server starts, so the first new chat can
+  // use it without a visit to Settings.
+  const checks = new AutoCheck(store);
+  try {
+    checks.run(loadConfig().providers);
+  } catch (err) {
+    // A broken config.json is reported to the page by the providers route.
+    console.error("[check] could not read the providers to check them:", err);
+  }
 
   const server = createServer(async (req, res) => {
     if (!originAllowed(req, port)) {
@@ -150,7 +160,7 @@ export function startServer(port: number, webRoot: string | null): Server {
       if (/^\/api\/sessions\/[^/]+\/(files|file|raw|roots)$/.test(url.pathname)) {
         return await handleFiles(req, res, url, store, sessions);
       }
-      if (url.pathname.startsWith("/api/")) return await handleApi(req, res, url, store);
+      if (url.pathname.startsWith("/api/")) return await handleApi(req, res, url, store, checks);
       if (webRoot) return serveStatic(res, webRoot, url.pathname);
       return sendJson(res, 404, { error: kcError("INTERNAL", "No web build. Run `npm run build`.") });
     } catch (err) {
@@ -195,16 +205,21 @@ async function handleApi(
   res: ServerResponse,
   url: URL,
   store: Store,
+  checks: AutoCheck,
 ): Promise<void> {
   const config = loadConfig();
 
   // GET /api/providers — the setup page's list, each with its last check.
   if (url.pathname === "/api/providers" && req.method === "GET") {
+    // config.json is read afresh each time, so this is where a provider
+    // added or changed by hand is noticed, and checked.
+    checks.run(config.providers);
     const providers: ProviderView[] = config.providers.map((p) => ({
       ...p,
       // Names only: the values are often API keys, and the page never needs them.
       ...(p.env ? { env: Object.fromEntries(Object.keys(p.env).map((k) => [k, "(hidden)"])) } : {}),
       lastCheck: store.lastCheck(p.id),
+      checking: checks.checking(p.id),
       defaults: store.rememberedStart(p.id),
     }));
     return sendJson(res, 200, { providers, platform: hostPlatform() });

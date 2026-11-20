@@ -189,8 +189,12 @@ text as an **ordinary prompt** — there is no dedicated method and nothing
 agent-specific about it.
 
 This is how Kiro's reasoning effort is reachable: `/effort low|medium|high|xhigh|max`.
-It is not a `configOption`, so it never appears in a picker. A missing picker
-does not mean a missing feature. Kiro also persists the choice in
+It is not a `configOption`, so Corella offers the command itself as a picker
+beside the model, and sends it as a *quiet* prompt: a real turn, so Kiro
+answers it, but marked `quiet` in the log and hidden with its answer from the
+transcript. The last choice is remembered as the agent's opening and sent
+quietly at the start of each new chat. A missing picker does not mean a
+missing feature. Kiro also persists the choice in
 `~/.kiro/settings/cli.json`, where `chat.modelDefaults` sets a per-model default
 independently of any client.
 

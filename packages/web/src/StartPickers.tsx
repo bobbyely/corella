@@ -6,8 +6,8 @@ import type { ConfigOption, ProviderView, StartOptions } from "@corella/shared";
  * The list comes from the provider's last setup check, which ran `session/new`
  * and kept what the agent advertised. It can lag what the agent offers today
  * — a value the agent no longer knows is skipped when the session starts, not
- * refused here. The opening message is for settings an agent exposes only as
- * a slash command (Kiro's `/effort`): it goes as the first turn.
+ * refused here. The opening message goes as the first turn; one that is only a
+ * slash command is a setting, and the server sends it without showing it.
  */
 export function StartPickers({
   provider,
@@ -36,12 +36,11 @@ export function StartPickers({
           <Picker option={option} value={values[option.id]} onChange={(v) => set(option.id, v)} />
         </label>
       ))}
-      <label className="start-picker" title="Sent as the first message — a slash command such as /effort high">
+      <label className="start-picker" title="Sent as the first message">
         <span className="start-picker-label">Opening</span>
         <input
           value={value.opening ?? ""}
           onChange={(e) => onChange({ ...value, opening: e.target.value })}
-          placeholder="/effort high"
           spellCheck={false}
         />
       </label>

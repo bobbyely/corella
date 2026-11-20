@@ -77,6 +77,8 @@ export interface ProviderCheckResult {
 
 export interface ProviderView extends ProviderConfig {
   lastCheck: ProviderCheckResult | null;
+  /** Its automatic check is running now; `lastCheck` is the one before. */
+  checking?: boolean;
   /**
    * What a new conversation on this provider starts with unless changed: the
    * picker values and opening command last used, on the new-chat page or in

@@ -307,6 +307,13 @@ All of these were real races, found the hard way.
   `shared/src/events.ts`) now neither names the chat nor shows as a bubble:
   the next real message names it, and the command is a small line in the
   transcript. It stays in the log as it was sent.
+- **A draft must be promoted when its message is sent, not when it runs.**
+  The new chat closes a draft once nobody views it, and the page swaps to the
+  chat view right after sending, which can close the socket the message went
+  out on. Promoting in `runTurn` left a window where the queued message
+  belonged to a draft already being closed. `Session.prompt` promotes at once,
+  and `ws.ts` takes the new view before letting the old one go, so watching
+  the same chat again never drops its count to zero.
 - **An omitted `oldText` is not an empty one.** ACP's diff `oldText` is
   optional; coercing absence to `""` made the Changes pane label every write
   whose before-text the agent left out as a *new* file. Absent stays `null`:

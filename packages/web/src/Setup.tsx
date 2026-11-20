@@ -33,6 +33,14 @@ export function Setup() {
     void load();
   }, [load]);
 
+  // Agents are checked automatically; ask again until those checks are done.
+  const autoChecking = providers?.some((p) => p.checking) ?? false;
+  useEffect(() => {
+    if (!autoChecking) return;
+    const id = window.setTimeout(() => void load(), 1_000);
+    return () => window.clearTimeout(id);
+  }, [autoChecking, providers, load]);
+
   const check = useCallback(async (id: string) => {
     setRunning((prev) => new Set(prev).add(id));
     setCheckErrors((prev) => {
@@ -64,8 +72,8 @@ export function Setup() {
       <header className="header">
         <h1>Settings</h1>
         <p className="subtitle">
-          Verify each agent before you rely on it. A provider must pass every rung before it can
-          be used for a new chat.
+          Each agent is checked when Corella starts and when its command changes, and must pass
+          every rung before a new chat can use it. Check again here to see why one fails.
         </p>
         {providers && (
           <p className="tally">
@@ -87,7 +95,7 @@ export function Setup() {
           <ProviderCard
             key={provider.id}
             provider={provider}
-            running={running.has(provider.id)}
+            running={running.has(provider.id) || provider.checking === true}
             checkError={checkErrors[provider.id] ?? null}
             platform={platform}
             onCheck={() => void check(provider.id)}

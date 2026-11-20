@@ -69,10 +69,12 @@ function handleConnection(ws: WebSocket, sessions: SessionManager): void {
   // whichever transcript the reader has since switched to.
   let watching: Array<() => void> = [];
   const watch = (sessionId: string) => {
-    for (const off of watching) off();
-    watching = [];
     // Viewing counts for a chat restored from disk too: opening it reads it.
-    watching.push(sessions.view(sessionId));
+    // Taken before the old view is let go, so watching the same chat again
+    // never drops its count to zero, which would close a new chat's draft.
+    const viewing = sessions.view(sessionId);
+    for (const off of watching) off();
+    watching = [viewing];
     const live = sessions.getLive(sessionId);
     if (!live) return; // restored from disk: a transcript, with nothing live to add
     watching.push(live.subscribe((events) => send({ type: "events", sessionId: live.id, events })));
@@ -142,9 +144,12 @@ async function dispatch(
       if (!provider) {
         throw kcError("PROVIDER_UNKNOWN", `No provider configured with id '${msg.providerId}'.`);
       }
-      const session = await sessions.open(provider, msg.cwd, msg.start);
+      const session = await sessions.open(provider, msg.cwd, msg.start, msg.draft ?? false);
       // Only once the agent is up: a start that failed is not one to repeat.
       sessions.rememberStart(provider.id, msg.start ?? {});
+      // Watched from here rather than from the browser's `subscribe`, so a
+      // draft whose socket closes first is still let go, and closed.
+      if (msg.draft) watch(session.id);
       send({ type: "session_opened", session: session.summary() });
       return;
     }
@@ -241,7 +246,7 @@ async function dispatch(
     case "prompt": {
       const session = sessions.requireLive(msg.sessionId);
       send({ type: "session_state", session: { ...session.summary(), busy: true } });
-      await session.prompt(msg.text, msg.images ?? [], msg.files ?? []);
+      await session.prompt(msg.text, msg.images ?? [], msg.files ?? [], msg.quiet ?? false);
       send({ type: "session_state", session: session.summary() });
       return;
     }

@@ -1,4 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { AgentConversationsSection, type AdoptTarget } from "./AgentConversations.js";
 import type { RoomView, ScheduleRun, ScheduleView, SessionSummary } from "@corella/shared";
 import { fetchRooms, fetchSchedules } from "./api.js";
 import { GamesPanel } from "./games/Games.js";
@@ -50,6 +51,7 @@ export function Sidebar({
   roomsActive,
   onOpenRoom,
   activeRoomId,
+  onAdopt,
 }: {
   api: RefObject<SidebarApi | null>;
   listVersion: number;
@@ -66,6 +68,8 @@ export function Sidebar({
   roomsActive: boolean;
   onOpenRoom: (id: string) => void;
   activeRoomId?: string | undefined;
+  /** Opens a conversation started in the agent's own CLI, found under Search. */
+  onAdopt: (providerId: string, target: AdoptTarget) => void;
 }) {
   const { connected, sessions, listSessions, renameSession, archiveSession, search, searchHits } =
     useChat();
@@ -257,6 +261,7 @@ export function Sidebar({
               <Snippet text={hit.snippet} />
             </button>
           ))}
+          <AgentConversationsSection query={query} onAdopt={onAdopt} onOpenSession={onOpenSession} />
         </nav>
       ) : (
       <nav className="sidebar-list" aria-label="Chats">

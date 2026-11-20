@@ -28,6 +28,17 @@ All notable changes to Corella are written down here. The format follows
   Brave offer **Install Corella**, and Safari offers **Add to Dock**.
 - **Archivo and Red Hat Mono,** served by Corella itself. No fonts or anything
   else are fetched from outside.
+- **A new chat is the opening screen.** The cursor is in the box, and the
+  agent, model, effort and folder are what you used last. The agent starts in
+  the background while you type; a message sent before it is up waits under
+  "Starting…" and is never lost. The folder is a list of recent folders, plus
+  **Choose another…**. There is one **New chat** button.
+- **Agents are checked by themselves,** when Corella starts and when one is
+  added or changed. An agent that failed says why in the agent picker. Check in
+  Settings is still there, to see the steps.
+- **An effort picker beside the model.** It sets the agent's own effort setting
+  where there is one, or sends the agent's `/effort` command quietly where that
+  is the only way (Kiro). It never shows as a message or names the chat.
 - **A `corella` command.** It starts Corella and opens your browser already
   logged in. `corella --app` opens it in its own window (Chrome, Edge, Brave
   or Chromium), `--no-open` just prints the link, and `--port` picks the port.
@@ -37,6 +48,10 @@ All notable changes to Corella are written down here. The format follows
 
 - **Setup is now Settings,** with the theme choice, the keyboard shortcuts and
   the agents' checks.
+- **Conversations your agent already has** moved from the new-chat page into
+  Search, filtered by what you type.
+- **The Opening field** no longer suggests `/effort high`: effort has its own
+  picker.
 - **Nothing is smaller than 12px.** Body text is 14 to 15px.
 - **Starting is quicker.** `npm start` and `corella` build only when the code
   has changed since the last build, rather than every time: about 0.2 seconds
