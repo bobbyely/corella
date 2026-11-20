@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { KcEvent } from "@corella/shared";
 import { latestUsage } from "@corella/shared";
-import { FOLD_AFTER, buildRows, clockLabel, currentTurnStart, languageFor, toolContent, toolSubtitle, turnTimes } from "../timeline.ts";
+import { FOLD_AFTER, buildRows, clockLabel, currentTurnStart, languageFor, openAskKeys, toolContent, toolSubtitle, turnTimes } from "../timeline.ts";
 
 const ev = (e: Partial<KcEvent> & { type: KcEvent["type"] }, seq: number): KcEvent =>
   ({ seq, ts: 0, ...e }) as KcEvent;
@@ -304,5 +304,17 @@ describe("the running sheet's clock", () => {
     assert.equal(clockLabel(61_000), "01:01");
     assert.equal(clockLabel(3_727_000), "1:02:07");
     assert.equal(clockLabel(-5), "00:00");
+  });
+});
+
+describe("openAskKeys", () => {
+  it("gives one key per open question, so a second question is news, and drops answered ones", () => {
+    const rows = buildRows([
+      ev({ type: "user_message", text: "/effort max", quiet: true } as never, 1),
+      ev({ type: "permission_request", requestId: "p1", title: "Allow?", options: [] } as never, 2),
+      ev({ type: "permission_request", requestId: "p2", title: "And this?", options: [] } as never, 3),
+      ev({ type: "permission_resolved", requestId: "p1", optionId: "yes", outcome: "selected" } as never, 4),
+    ]);
+    assert.equal(openAskKeys("draft-1", rows), "draft-1:p2", "a quiet opening's question in a draft counts");
   });
 });

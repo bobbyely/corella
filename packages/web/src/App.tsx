@@ -86,6 +86,8 @@ export function App() {
   // The sidebar owns the conversation list, so it exposes the two things
   // shortcuts need rather than the list being lifted up here.
   const sidebarApi = useRef<SidebarApi>(null);
+  /** The chat on screen's open questions, for the word games to give way to. */
+  const [asking, setAsking] = useState("");
 
   const shortcuts = useMemo(
     () => ({
@@ -113,6 +115,7 @@ export function App() {
     <div className={`shell ${listOpen ? "list-open" : ""}`}>
       <Sidebar
         api={sidebarApi}
+        asking={asking}
         listVersion={listVersion}
         activeSessionId={view.name === "chat" ? view.sessionId : undefined}
         onNewChat={newChat}
@@ -172,6 +175,7 @@ export function App() {
           <Chat
             draft={view.name === "new"}
             onShowList={showList}
+            onAsking={setAsking}
             onBegan={(sessionId) =>
               setView((v) => (v.name === "new" ? { name: "chat", sessionId, fromDraft: v.n } : v))
             }

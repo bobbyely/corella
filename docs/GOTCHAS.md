@@ -163,14 +163,21 @@ All of these were real races, found the hard way.
   same tick wrote a `skipped` row every minute a 1-minute schedule was due
   while its run was still going — the overlap is recorded once.
 - **An `await` in a socket handler can outlive the socket and the reader's
-  choice.** A new chat's `open` waits for the agent's whole start. Accepting
-  every `session_opened` let a folder switched away from answer last and take
-  the next message; holding the first message in the page lost it on a reload;
-  and a `watch` that ran after the socket's `close` registered a viewer nobody
-  released, so the draft agent ran until shutdown. A start is now tied to the
-  socket's current request (`SocketView.start`), checked again after the
-  `await`, and the first message is held on the server (`hold_first`). Any new
-  awaited handler that ends by watching or answering must make the same check.
+  choice.** A new chat's `open` waits for the agent's whole start, and a
+  `resume` for its replay. Accepting every `session_opened` let a folder
+  switched away from answer last and take the next message; a `watch` after
+  the socket's `close` registered a viewer nobody released, so the draft agent
+  ran until shutdown; a late resume replaced the chat on screen, closing its
+  draft. Every handler that changes the view bumps `SocketView.generation`;
+  one that awaits checks it, and `closed`, before it watches or answers, and
+  says nothing of a failure the reader has left. A new awaited handler must
+  do the same.
+- **Never let the server hold a message the user has not seen sent.** The
+  first try at "send before the agent is up" held the message server-side and
+  kept a copy in the page. A lost acknowledgement then sent it twice, a
+  reconnect started a second draft, and a failed start after a reload had
+  nowhere to give it back. Two copies of an unsent message is the bug; the
+  page keeps the only one, in the box, until the agent is up.
 - **Two checks of one provider can be in flight.** Changing a provider while
   its automatic check runs starts another; the slower one used to win and
   either one ending cleared `checking`. `AutoCheck` numbers each provider's
@@ -383,6 +390,12 @@ All of these were real races, found the hard way.
   reads as slowness rather than polish. Jump for the first scroll into a
   conversation — from `useLayoutEffect`, so the top is never painted — and go
   smooth only once the reader is following live output.
+- **"Something is waiting on you" needs an identity, and drafts.** The word
+  games closed on a phone when the sidebar's list said any chat was waiting:
+  a boolean, so a second chat asking did not close it again, and the list
+  leaves new chats out, so a draft's quiet opening asking permission did not
+  count. The chat on screen now reports a key per open question
+  (`openAskKeys`), and the sheet closes when any key is new.
 - **Hiding a turn hides what it asks.** Quiet turns (`/effort high`) were
   filtered down to their errors, which also dropped a permission prompt or a
   question the command raised, and they reported `busy: false`, which hid

@@ -202,18 +202,27 @@ its turn runs, so a page that sends and closes its socket at once cannot lose
 it. A draft nobody is viewing any more (another chat opened, the tab closed)
 is closed by `SessionManager.view`, leaving no trace.
 
-Each `open` carries a `requestId`, and a socket waits on one start at a time:
-any later `open`, `adopt`, `subscribe` or `resume` on it supersedes the start
-in flight (`SocketView.start` in `ws.ts`). A superseded start, or one whose
-socket closed, is not answered and its draft is closed when it comes up — so a
-slow agent in a folder since switched away from cannot take the next message.
-A message sent before the agent is up goes to the server as `hold_first`; the
-server holds it on that start and prompts it the moment the agent is ready,
-superseded or not, which promotes the draft into a listed chat. So switching
-chats or reloading mid-start cannot lose it, and only the server sends it, so
-it cannot go twice. The browser keeps a copy (`outbox.ts`) only to show under
-"Starting…", and gives it back to the box if the start fails or the server
-never answered `held`.
+Each `open` carries a `requestId`. A socket has a view generation
+(`SocketView.generation` in `ws.ts`), bumped by every `open`, `adopt`,
+`subscribe` and `resume`; a handler that awaits takes it first and checks it,
+and the socket's `closed`, before it watches or answers. So a slow start or
+resume the reader has left is never shown: a superseded draft is closed when
+it comes up, and a late resume cannot take the socket from the chat on screen.
+A start's failure carries its `requestId`, and the page acts only on the start
+it is waiting for; a failure ends that start, and the next Enter begins a new
+one.
+
+**The server never holds an unsent message.** Enter before the agent is up
+leaves the text in the box, read-only, under "Sends when <agent> is ready"
+with a Cancel, and records the start it waits on (`firstMessage.ts`). When
+that exact start's `session_opened` arrives, the composer sends it as an
+ordinary prompt and clears the box. Anything else — a new folder or agent, a
+failed start, a dropped socket (the page reopens with a new id), another
+chat, a reload — sends nothing and leaves the words in the box; the new
+chat's text is kept in `localStorage`, so a reload brings it back. An earlier
+version held the message on the server; every way that could go wrong (a lost
+acknowledgement sending it twice, a failure with nobody to give it back to)
+came from there being two copies, so now there is one.
 
 **Settings the agent offers only as a slash command** (Kiro's `/effort`) are
 sent as *quiet* turns: a prompt with `quiet: true` runs as an ordinary turn,

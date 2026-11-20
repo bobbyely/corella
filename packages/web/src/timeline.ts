@@ -478,3 +478,19 @@ export function currentTurnStart(events: KcEvent[]): number | null {
   }
   return start;
 }
+
+/** A question still waiting on you: its time is marked in the cue colour. */
+export function isOpenAsk(row: Row): boolean {
+  return (row.kind === "permission" && row.answeredWith === null) || (row.kind === "elicitation" && row.answer === null);
+}
+
+/**
+ * One key per question still open in a chat, space-separated. A key per
+ * question, not a flag per chat, so a second question is news too.
+ */
+export function openAskKeys(sessionId: string, rows: Row[]): string {
+  return rows
+    .filter(isOpenAsk)
+    .map((r) => `${sessionId}:${"requestId" in r ? r.requestId : ""}`)
+    .join(" ");
+}

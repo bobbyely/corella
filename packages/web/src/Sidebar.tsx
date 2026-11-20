@@ -41,6 +41,7 @@ export interface SidebarApi {
 export function Sidebar({
   api,
   listVersion,
+  asking = "",
   activeSessionId,
   onNewChat,
   onOpenSession,
@@ -58,6 +59,8 @@ export function Sidebar({
 }: {
   api: RefObject<SidebarApi | null>;
   listVersion: number;
+  /** The open questions in the chat on screen (see `Chat`'s `onAsking`). */
+  asking?: string;
   activeSessionId?: string | undefined;
   onNewChat: () => void;
   onOpenSession: (id: string) => void;
@@ -82,12 +85,22 @@ export function Sidebar({
   // They render into the body, not here: on a narrow screen this rail is
   // transformed off screen, and a fixed panel inside it would go with it.
   const [playing, setPlaying] = useState(false);
-  const awaitingInput = sessions?.some((s) => s.awaitingInput) ?? false;
+  // Everything waiting on the user: listed chats, and the chat on screen's
+  // own questions, which covers a new chat the list leaves out.
+  const waitingKeys = [...(sessions ?? []).filter((s) => s.awaitingInput).map((s) => s.id), ...asking.split(" ")]
+    .filter(Boolean)
+    .join(" ");
+  const awaitingInput = waitingKeys !== "";
   // On a phone the games are a sheet over the chat, so over a prompt's keys:
-  // it gives way when the agent asks. The same width as the sheet's CSS.
+  // it gives way each time something new asks, not only the first time. The
+  // same width as the sheet's CSS.
+  const seenWaiting = useRef(new Set<string>());
   useEffect(() => {
-    if (awaitingInput && window.matchMedia("(max-width: 860px)").matches) setPlaying(false);
-  }, [awaitingInput]);
+    const now = new Set(waitingKeys.split(" ").filter(Boolean));
+    const fresh = [...now].some((k) => !seenWaiting.current.has(k));
+    seenWaiting.current = now;
+    if (fresh && window.matchMedia("(max-width: 860px)").matches) setPlaying(false);
+  }, [waitingKeys]);
 
   // A chat that needs you, while you are looking at another tab or chat: the
   // count in the tab's title, and one polite announcement per chat as it cues.

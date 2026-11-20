@@ -133,6 +133,8 @@ const app = agent({ name: "mock-agent" })
   })
   .onRequest("session/set_mode", () => ({}))
   .onRequest("session/load", async ({ params, client }) => {
+    // MOCK_LOAD_DELAY_MS: a slow resume, to try switching chats while it runs.
+    await sleep(Number(process.env.MOCK_LOAD_DELAY_MS ?? 0));
     const notify = (update) =>
       client.notify("session/update", { sessionId: params.sessionId, update });
     // Real agents replay both sides of the conversation, so the client has to

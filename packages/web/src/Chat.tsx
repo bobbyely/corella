@@ -11,6 +11,7 @@ import type {
   StartOptions,
 } from "@corella/shared";
 import { Composer, shortFolder } from "./Composer.js";
+import type { PromptResult } from "./firstMessage.js";
 import { KSpinner } from "./KSpinner.js";
 import { ChangesPane } from "./ChangesPane.js";
 import { FilesPane } from "./FilesPane.js";
@@ -25,7 +26,9 @@ import {
   buildRows,
   clockLabel,
   currentTurnStart,
+  isOpenAsk,
   languageFor,
+  openAskKeys,
   toolContent,
   toolSubtitle,
   turnTimes,
@@ -33,7 +36,6 @@ import {
   type ToolDiff,
 } from "./timeline.js";
 import { useChat } from "./useChat.js";
-import type { Outgoing } from "./outbox.js";
 import { isReady, useProviders } from "./useReadyProviders.js";
 
 /** Rows rendered initially, and how many more each "show earlier" adds. */
@@ -53,6 +55,7 @@ export function Chat({
   draft = false,
   onBegan,
   onShowList,
+  onAsking,
 }: {
   providerId?: string;
   cwd?: string;
@@ -75,6 +78,12 @@ export function Chat({
   onBegan?: (sessionId: string) => void;
   /** On a narrow screen the list of chats slides over; this shows it. */
   onShowList?: () => void;
+  /**
+   * The questions open in the chat on screen, one key each, a new chat's
+   * included: the sidebar's list leaves drafts out, and the word games must
+   * give way to them too.
+   */
+  onAsking?: (keys: string) => void;
 }) {
   const {
     connected,
@@ -82,9 +91,7 @@ export function Chat({
     events,
     error,
     openSession,
-    holdFirst,
-    waiting,
-    returned,
+    start: startRequest,
     adoptSession,
     attachSession,
     resumeSession,
@@ -185,28 +192,34 @@ export function Chat({
     else if (providerId) openSession(providerId, cwd, start);
   }, [connected, openSession, adoptSession, attachSession, providerId, cwd, start, sessionId, adopt, draft, draftProvider, draftCwd, liveId]);
 
-  // A message sent before the new chat's agent is up goes to the server at
-  // once, which holds it and sends it when the agent is ready: switching chat
-  // or reloading cannot lose it. Shown under "Starting…" meanwhile; if the
-  // start fails, or the server never got it, it goes back into the box.
-  const restored = returned ? { text: returned.message.text, n: returned.n } : null;
+  // Enter before the new chat's agent is up sends nothing: the message stays
+  // in the box, marked to go when this start is up, and the composer sends it
+  // from there. So nothing unsent ever leaves the page, and a switch, a
+  // reload or a failed start leaves the words where they were.
   const live = session?.live === true;
   const send = useCallback(
-    (text: string, images: Outgoing["images"], files: string[]): boolean => {
-      if (draft && !live) return holdFirst({ text, images, files });
+    (text: string, images: Array<{ mime: string; data: string }>, files: string[]): PromptResult => {
+      if (draft && !live) {
+        if (startRequest) return { pendingOn: startRequest };
+        // The last start failed, or none began: this Enter begins a fresh one.
+        if (!draftProvider) return false;
+        const opening = draftOpening.current;
+        return { pendingOn: openSession(draftProvider, draftCwd, opening ? { opening } : {}, true) };
+      }
       prompt(text, images, files);
       if (draft && liveId) onBegan?.(liveId);
       return true;
     },
-    [draft, live, liveId, prompt, holdFirst, onBegan],
+    [draft, live, liveId, startRequest, draftProvider, draftCwd, openSession, prompt, onBegan],
   );
-  // Up, with a message held: the server has sent it, so this is a chat now.
-  useEffect(() => {
-    if (draft && live && liveId && waiting) onBegan?.(liveId);
-  }, [draft, live, liveId, waiting, onBegan]);
   const quietCommand = useCallback((text: string) => prompt(text, [], [], true), [prompt]);
 
   const allRows = useMemo(() => buildRows(events), [events]);
+  const asking = openAskKeys(session?.id ?? "", allRows);
+  useEffect(() => {
+    onAsking?.(asking);
+  }, [asking, onAsking]);
+  useEffect(() => () => onAsking?.(""), [onAsking]);
   const [windowSize, setWindowSize] = useState(INITIAL_ROWS);
   const [pane, setPane] = useState<SideTab | null>(null);
 
@@ -278,14 +291,13 @@ export function Chat({
   // A session read back from disk has no agent attached until it is resumed.
   const readOnly = session !== null && !session.live;
   // Shown until the server's copy of it arrives in the log.
-  const held = waiting && !rows.some((r) => r.kind === "user" || r.kind === "command") ? waiting : null;
   // The new chat's empty state: the box in the middle of the page.
-  const blank = draft && !held;
+  const blank = draft;
 
   // The composer keeps its key when the new chat becomes a conversation, so
   // focus and anything typed after the first message stay put.
   const composerKey = useRef("new");
-  if (draft) composerKey.current = `draft-${restored?.n ?? 0}`;
+  if (draft) composerKey.current = "draft";
   else if (!composerKey.current.startsWith("draft") || session?.id !== sessionId) composerKey.current = session?.id ?? "new";
 
   const agentName = draftAgent?.name ?? session?.providerName;
@@ -398,17 +410,6 @@ export function Chat({
               user messages can still sit right while the column stays centred. */}
           <div className="transcript-inner">
             {!session && !draft && <p className="muted">{sessionId ? "Loading conversation…" : "Starting agent…"}</p>}
-            {held && (
-              <Step time={undefined}>
-                <Message
-                  row={{ kind: "user", seq: -1, text: held.text, attachments: [], files: [] }}
-                  onPermission={answerPermission}
-                  onElicitation={answerElicitation}
-                  handoffFor={handoffFor}
-                />
-              </Step>
-            )}
-            {held && <Step time={undefined}>{lamp}</Step>}
             {hidden > 0 && (
               <button className="show-earlier" onClick={() => setWindowSize((n) => n + MORE_ROWS)}>
                 Show earlier messages ({hidden} hidden)
@@ -491,7 +492,9 @@ export function Chat({
                 : undefined
             }
             autoFocus={draft}
-            seed={draft ? restored?.text : undefined}
+            waitingOn={draft ? startRequest : null}
+            ready={live}
+            agentName={agentName}
             onQuietCommand={quietCommand}
             busy={busy}
             commandOptions={commandOptions}
@@ -509,7 +512,7 @@ export function Chat({
             onMoveQueued={moveQueued}
           />
         )}
-        {!held && lamp}
+        {lamp}
       </div>
       {pane && session && (
         <SidePane
@@ -556,10 +559,6 @@ function Step({
   );
 }
 
-/** A question still waiting on you: its time is marked in the cue colour. */
-function isOpenAsk(row: Row): boolean {
-  return (row.kind === "permission" && row.answeredWith === null) || (row.kind === "elicitation" && row.answer === null);
-}
 
 /** The last two parts of a path: enough to know the project, and nothing personal. */
 /**

@@ -1,8 +1,8 @@
-import { randomUUID } from "node:crypto";
 import type { IncomingMessage, Server } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import {
   causeOf,
+  isKcError,
   kcError,
   parseClientMessage,
   type ClientMessage,
@@ -25,24 +25,16 @@ import { SessionManager } from "./sessionManager.js";
  */
 const WS_PATH = "/ws";
 
-/**
- * A new chat's agent being started for this socket, and the first message
- * held for it. One per socket: any later open, adopt, subscribe or resume
- * replaces it, which is how a slow start learns it was left.
- */
-interface Start {
-  requestId: string;
-  held: Array<{ text: string; images: Array<{ mime: string; data: string }>; files: string[] }>;
-  /** Set once the agent is up; a message held after that goes straight to it. */
-  session: Session | null;
-}
-
 /** What one socket is doing, as the frame handlers need to know it. */
 export interface SocketView {
   /** Shows this chat on the socket, in place of whatever it showed. */
   watch(sessionId: string): void;
-  /** The start in flight, if the socket is waiting on one. */
-  start: Start | null;
+  /**
+   * Bumped by every open, adopt, subscribe and resume: each changes which
+   * chat the socket shows. A handler that awaits takes it first and checks it
+   * after, so a slow start or resume the reader has left never takes over.
+   */
+  generation: number;
   /** Set when the socket closes, so a start that finishes later is not shown on it. */
   closed: boolean;
 }
@@ -110,7 +102,7 @@ function handleConnection(ws: WebSocket, sessions: SessionManager): void {
     for (const off of watching) off();
     watching = [];
   });
-  const view: SocketView = { watch, start: null, closed: false };
+  const view: SocketView = { watch, generation: 0, closed: false };
 
   ws.on("message", (raw) => {
     void handleFrame(String(raw), sessions, send, view, prefs);
@@ -167,9 +159,10 @@ async function dispatch(
   prefs: { includeArchived: boolean },
 ): Promise<void> {
   const { watch } = view;
-  // Each of these changes which chat the socket shows, so a start still in
-  // flight is no longer the one the reader is waiting for.
-  if (msg.type === "open" || msg.type === "adopt" || msg.type === "subscribe" || msg.type === "resume") view.start = null;
+  const changesView = msg.type === "open" || msg.type === "adopt" || msg.type === "subscribe" || msg.type === "resume";
+  const generation = changesView ? ++view.generation : view.generation;
+  /** Still the chat the reader wants on this socket, after an await. */
+  const current = () => !view.closed && view.generation === generation;
 
   switch (msg.type) {
     case "open": {
@@ -177,24 +170,20 @@ async function dispatch(
       if (!provider) {
         throw kcError("PROVIDER_UNKNOWN", `No provider configured with id '${msg.providerId}'.`);
       }
-      const start: Start = { requestId: msg.requestId ?? randomUUID(), held: [], session: null };
-      view.start = start;
-      const current = () => !view.closed && view.start === start;
       let session: Session;
       try {
         session = await sessions.open(provider, msg.cwd, sessions.withNewChatDefaults(msg.start), msg.draft ?? false);
       } catch (err) {
         // A start the reader has left is not theirs to be told about: the
-        // error would land on whatever chat is on screen now.
-        if (current()) throw err;
+        // error would land on whatever chat is on screen now. A current one
+        // says which start failed, so the page drops that start and no other.
+        if (!current()) return;
+        const error = isKcError(err) ? err : kcError("INTERNAL", "The agent did not start.", { cause: causeOf(err) });
+        send({ type: "error", error, ...(msg.requestId ? { requestId: msg.requestId } : {}) });
         return;
       }
       // Only once the agent is up: a start that failed is not one to repeat.
       sessions.rememberStart(provider.id, msg.start ?? {});
-      start.session = session;
-      // Sent whether or not anyone still watches: once said, it is a chat,
-      // and the server owns it (invariant 4).
-      for (const m of start.held.splice(0)) void session.prompt(m.text, m.images, m.files);
       if (!current()) {
         // Left mid-start, by a folder switch, another chat or a closed tab.
         sessions.closeIfDraft(session.id);
@@ -203,21 +192,7 @@ async function dispatch(
       // Watched from here rather than from the browser's `subscribe`, so a
       // draft whose socket closes first is still let go, and closed.
       if (msg.draft) watch(session.id);
-      send({ type: "session_opened", session: session.summary(), requestId: start.requestId });
-      return;
-    }
-
-    case "hold_first": {
-      const start = view.start;
-      if (!start || start.requestId !== msg.requestId) {
-        throw kcError("SESSION_UNKNOWN", "That new chat is no longer starting.", {
-          remediation: "Send the message again from the chat on screen.",
-        });
-      }
-      const message = { text: msg.text, images: msg.images ?? [], files: msg.files ?? [] };
-      if (start.session) void start.session.prompt(message.text, message.images, message.files);
-      else start.held.push(message);
-      send({ type: "held", requestId: msg.requestId });
+      send({ type: "session_opened", session: session.summary(), ...(msg.requestId ? { requestId: msg.requestId } : {}) });
       return;
     }
 
@@ -226,15 +201,14 @@ async function dispatch(
       if (!provider) {
         throw kcError("PROVIDER_UNKNOWN", `No provider configured with id '${msg.providerId}'.`);
       }
-      const start: Start = { requestId: randomUUID(), held: [], session: null };
-      view.start = start;
-      const session = await sessions.adopt(provider, {
-        agentSessionId: msg.agentSessionId,
-        cwd: msg.cwd,
-        title: msg.title ?? null,
-      });
+      const session = await sessions
+        .adopt(provider, { agentSessionId: msg.agentSessionId, cwd: msg.cwd, title: msg.title ?? null })
+        .catch((err: unknown) => {
+          if (current()) throw err;
+          return null;
+        });
       // Not a draft, so nothing to close; only not to be shown over what the reader moved on to.
-      if (view.closed || view.start !== start) return;
+      if (!session || !current()) return;
       send({ type: "session_opened", session: session.summary() });
       return;
     }
@@ -305,7 +279,14 @@ async function dispatch(
           `'${record.providerName}' is no longer configured, so this conversation cannot be reopened.`,
         );
       }
-      const resumed = await sessions.resume(msg.sessionId, provider);
+      const resumed = await sessions.resume(msg.sessionId, provider).catch((err: unknown) => {
+        // Failing for a chat the reader has left would show on the one they moved to.
+        if (current()) throw err;
+        return null;
+      });
+      // A resume that finished after the reader moved on must not take the
+      // socket back from the chat now on screen. The agent stays attached.
+      if (!resumed || !current()) return;
       // The same slot `subscribe` uses: resuming what you are already watching
       // must not leave you subscribed to it twice.
       watch(resumed.id);

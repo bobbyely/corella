@@ -11,7 +11,6 @@ import type {
   SessionSummary,
   StartOptions,
 } from "@corella/shared";
-import { Outbox, type Outgoing } from "./outbox.js";
 
 /**
  * Owns the WebSocket and mirrors the server's event log.
@@ -43,21 +42,14 @@ export function useChat() {
    * answer, and taking it would send the next message to the wrong place.
    */
   const startId = useRef<string | null>(null);
-  /** Its `open`, until answered: asked again if the socket drops meanwhile. */
-  const openFrame = useRef<ClientMessage | null>(null);
-  /** The new chat's first message, held by the server until the agent is up. */
-  const outbox = useRef(new Outbox());
-  const [waiting, setWaiting] = useState<Outgoing | null>(null);
-  /** Given back for the box: the start failed, or the server never got it. */
-  const [returned, setReturned] = useState<{ message: Outgoing; n: number } | null>(null);
-  const giveBack = useCallback((message: Outgoing | null) => {
-    setWaiting(outbox.current.waiting);
-    if (message) setReturned((r) => ({ message, n: (r?.n ?? 0) + 1 }));
+  /** The same, for rendering: a message waiting for the agent waits on this start. */
+  const [start, setStartState] = useState<string | null>(null);
+  const setStart = useCallback((id: string | null) => {
+    startId.current = id;
+    setStartState(id);
   }, []);
-  const forgetHeld = useCallback(() => {
-    outbox.current.clear();
-    setWaiting(null);
-  }, []);
+  /** Its `open`, until answered: asked again, as a new start, if the socket drops meanwhile. */
+  const openFrame = useRef<Extract<ClientMessage, { type: "open" }> | null>(null);
 
   const send = useCallback((msg: ClientMessage) => {
     if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(msg));
@@ -73,8 +65,14 @@ export function useChat() {
     socket.onopen = () => {
       setConnected(true);
       // A start the old socket was waiting on was let go with it, by the
-      // server; ask again so this page is not left on "Starting…".
-      if (openFrame.current) socket.send(JSON.stringify(openFrame.current));
+      // server; ask again so this page is not left on "Starting…". A new id,
+      // so a message that was waiting on the old start is not sent by itself.
+      if (openFrame.current) {
+        const requestId = newRequestId();
+        openFrame.current = { ...openFrame.current, requestId };
+        setStart(requestId);
+        socket.send(JSON.stringify(openFrame.current));
+      }
       // Catch up on anything missed while we were away.
       if (sessionId.current) {
         socket.send(
@@ -131,12 +129,14 @@ export function useChat() {
           setCurrentWorkspace(msg.current);
           setLastProviderId(msg.lastProviderId);
           break;
-        case "held":
-          if (msg.requestId === startId.current) outbox.current.confirm();
-          break;
         case "error":
-          // The start failed: the server dropped what it held, so it goes back.
-          if (openFrame.current) giveBack(outbox.current.takeBack());
+          if (msg.requestId !== undefined) {
+            // A start's failure: an earlier start's is no longer this page's
+            // business, and the current one's ends it. The next Send starts afresh.
+            if (msg.requestId !== startId.current) break;
+            openFrame.current = null;
+            setStart(null);
+          }
           setError(msg.error);
           break;
       }
@@ -144,11 +144,11 @@ export function useChat() {
 
     socket.onclose = () => {
       setConnected(false);
-      // Confirmed messages are the server's to send even now; the rest never arrived.
-      giveBack(outbox.current.takeBackUnconfirmed());
+      // The server let the start go with the socket; a waiting message waits on nothing now.
+      if (openFrame.current) setStart(null);
       retry.current = window.setTimeout(connect, 1_000);
     };
-  }, [send, giveBack]);
+  }, [send, setStart]);
 
   useEffect(() => {
     connect();
@@ -173,11 +173,9 @@ export function useChat() {
       setSession(null);
       setEvents([]);
       setError(null);
-      forgetHeld();
-      // Unique enough: it only has to differ from this page's other starts.
-      const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-      startId.current = requestId;
-      const frame: ClientMessage = {
+      const requestId = newRequestId();
+      setStart(requestId);
+      const frame: Extract<ClientMessage, { type: "open" }> = {
         type: "open",
         requestId,
         providerId,
@@ -187,31 +185,9 @@ export function useChat() {
       };
       openFrame.current = frame;
       send(frame);
+      return requestId;
     },
-    [send, forgetHeld],
-  );
-
-  /**
-   * The new chat's first message, sent before its agent is up. The server
-   * holds it and sends it once the agent is ready, wherever this page has gone
-   * by then. False when it could not be sent: the box keeps it.
-   */
-  const holdFirst = useCallback(
-    (message: Outgoing): boolean => {
-      const requestId = startId.current;
-      if (!requestId || ws.current?.readyState !== WebSocket.OPEN) return false;
-      send({
-        type: "hold_first",
-        requestId,
-        text: message.text,
-        ...(message.images.length > 0 ? { images: message.images } : {}),
-        ...(message.files.length > 0 ? { files: message.files } : {}),
-      });
-      outbox.current.hold(message);
-      setWaiting(outbox.current.waiting);
-      return true;
-    },
-    [send],
+    [send, setStart],
   );
 
   /**
@@ -222,9 +198,8 @@ export function useChat() {
    */
   const adoptSession = useCallback(
     (providerId: string, listed: { agentSessionId: string; cwd: string; title: string | null }) => {
-      startId.current = null;
+      setStart(null);
       openFrame.current = null;
-      forgetHeld();
       send({
         type: "adopt",
         providerId,
@@ -233,7 +208,7 @@ export function useChat() {
         ...(listed.title ? { title: listed.title } : {}),
       });
     },
-    [send, forgetHeld],
+    [send, setStart],
   );
 
   /**
@@ -244,17 +219,16 @@ export function useChat() {
    */
   const attachSession = useCallback(
     (id: string) => {
-      startId.current = null;
+      setStart(null);
       openFrame.current = null;
       sessionId.current = id;
       lastSeq.current = 0;
       setSession(null);
       setEvents([]);
       setError(null);
-      forgetHeld();
       send({ type: "subscribe", sessionId: id, sinceSeq: 0 });
     },
-    [send, forgetHeld],
+    [send, setStart],
   );
 
   const listSessions = useCallback(
@@ -401,9 +375,7 @@ export function useChat() {
     events,
     error,
     openSession,
-    holdFirst,
-    waiting,
-    returned,
+    start,
     adoptSession,
     attachSession,
     resumeSession,
@@ -428,4 +400,9 @@ export function useChat() {
     interrupt,
     cancel,
   };
+}
+
+/** Unique enough: it only has to differ from this page's other starts. */
+function newRequestId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }

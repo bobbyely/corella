@@ -147,14 +147,14 @@ and holds no authoritative state (invariant 3).
 |---|---|
 | `App.tsx` | Routes |
 | `Chat.tsx` | **The other big one.** Transcript, scroll-following, every row renderer |
-| `Composer.tsx` | The message box and everything that changes per keystroke — draft, images, completion, the queue, the provider and config pickers — kept out of `Chat` so typing does not re-render the transcript |
+| `Composer.tsx` | The message box and everything that changes per keystroke — draft (kept across a reload for a new chat, and held in the box while its agent starts), images, completion, the queue, the provider and config pickers — kept out of `Chat` so typing does not re-render the transcript |
 | `timeline.ts` | Folds events into typed rows |
 | `useChat.ts` | The socket and resume-by-seq |
+| `firstMessage.ts` | A new chat's message typed before its agent is up: when it may go, and its text kept across a reload |
 | `useReadyProviders.ts` | The provider list, asked again while checks run, and the checked ones every picker and form reads |
 | `commands.ts`, `mentions.ts` | The pure halves of the `/` and `@` pickers |
 | `Setup.tsx` | The ladder UI |
 | `StartPickers.tsx` | The model/mode/opening-message choice the schedule and room forms share. A new chat is `Chat` with `draft` set |
-| `outbox.ts` | The page's copy of a new chat's first message, which the server holds until the agent is up: shown under "Starting…", given back if never confirmed |
 | `AgentConversations.tsx` | Under Search: conversations an agent already has, from `session/list` |
 | `Schedules.tsx` | Schedule list, form and run history |
 | `Rooms.tsx` | Room list, form and the room itself |

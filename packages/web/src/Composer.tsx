@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { keepNewChat, readNewChat, waitingStep, type PromptResult } from "./firstMessage.js";
 import type { CommandOption, ConfigOption, FileEntry, ProviderView, SessionSummary, SlashCommand } from "@corella/shared";
 import { fetchDirectory } from "./api.js";
 import { commonPrefix, complete } from "./commands.js";
@@ -64,7 +65,9 @@ export function Composer({
   roots,
   draft: choice,
   autoFocus = false,
-  seed,
+  waitingOn = null,
+  ready = false,
+  agentName,
 }: {
   session: SessionSummary | null;
   busy: boolean;
@@ -74,7 +77,7 @@ export function Composer({
   commandOptions: Record<string, CommandOption[]>;
   requestCommandOptions: (command: string, partial: string) => void;
   /** False when the message could not be sent, so the box keeps it. */
-  onPrompt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => boolean | void;
+  onPrompt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => PromptResult;
   /** Like `onPrompt`, but cancels the running turn first. */
   onInterrupt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => void;
   onCancel: () => void;
@@ -91,10 +94,15 @@ export function Composer({
   /** Set on a new chat; see `DraftChoice`. */
   draft?: DraftChoice | undefined;
   autoFocus?: boolean;
-  /** Text to start the box with: a first message given back when its agent failed to start. */
-  seed?: string | undefined;
+  /** The new chat's agent start in flight, if any: a message sent now waits on it. */
+  waitingOn?: string | null;
+  /** The agent is up, so a waiting message can go. */
+  ready?: boolean;
+  agentName?: string | undefined;
 }) {
-  const [draft, setDraft] = useState(seed ?? "");
+  const [draft, setDraft] = useState(() => (choice ? readNewChat() : ""));
+  /** The start a message is waiting on; while set, the box is kept as it is. */
+  const [pendingOn, setPendingOn] = useState<string | null>(null);
   const [images, setImages] = useState<PendingImage[]>([]);
   /** Index of the highlighted command while the slash picker is open. */
   const [commandIndex, setCommandIndex] = useState(0);
@@ -113,11 +121,29 @@ export function Composer({
     // the current turn ends — or, with "now", cuts the turn short for it.
     if (!text && images.length === 0) return;
     const send = mode === "now" ? onInterrupt : onPrompt;
-    if (send(text, images.map(({ mime, data }) => ({ mime, data })), mentionedIn(text, chosen)) === false) return;
+    const result = send(text, images.map(({ mime, data }) => ({ mime, data })), mentionedIn(text, chosen));
+    if (result === false) return;
+    if (typeof result === "object") return setPendingOn(result.pendingOn);
     setDraft("");
     setImages([]);
     setChosen(new Set());
   };
+
+  // The new chat's words survive a reload; once sent, the box is empty and so is this.
+  useEffect(() => {
+    if (choice) keepNewChat(draft);
+  }, [choice, draft]);
+
+  // A message waiting for the agent goes once that same start is up. Any other
+  // outcome (a new folder or agent, a failed start, a dropped socket) leaves
+  // it in the box, unsent, to be sent again by hand.
+  useEffect(() => {
+    if (pendingOn === null) return;
+    const step = waitingStep(pendingOn, waitingOn, ready);
+    if (step === "wait") return;
+    setPendingOn(null);
+    if (step === "send") submit();
+  });
 
   // `@` completes against the directory the partial names: the working
   // directory for a relative one, whichever root contains an absolute one.
@@ -260,9 +286,19 @@ export function Composer({
         </div>
       )}
       <div className="composer-box">
+      {pendingOn !== null && (
+        <p className="composer-waiting" role="status">
+          <span className="lamp starting" aria-hidden />
+          Sends when {agentName ?? "the agent"} is ready
+          <button className="link" onClick={() => setPendingOn(null)}>
+            Cancel
+          </button>
+        </p>
+      )}
       <textarea
         ref={box}
         value={draft}
+        readOnly={pendingOn !== null}
         aria-label="Message"
         autoFocus={autoFocus}
         placeholder={
