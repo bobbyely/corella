@@ -72,11 +72,13 @@ single database.
 
 `.git/config` does not travel with a clone, so set your commit identity before
 your first commit — otherwise commits are attributed to whatever global identity
-that machine has (a corporate one, on a work laptop):
+that machine has (a corporate one, on a work laptop). Use your GitHub
+username and GitHub's private `noreply` address (Settings → Emails), not a
+personal one: the history is public.
 
 ```bash
-git config user.name  "bobbyely"
-git config user.email "1413279+bobbyely@users.noreply.github.com"
+git config user.name  "your-github-username"
+git config user.email "12345+your-github-username@users.noreply.github.com"
 ```
 
 Verify with `git log -1 --format='%an <%ae>'` after committing. Getting it right
@@ -102,9 +104,12 @@ that error names each problem. Delete the file to get the defaults back.
 | OS | Data directory |
 |---|---|
 | macOS | `~/Library/Application Support/corella/` |
-| Linux | `~/.local/share/corella/` |
+| Linux | `~/.local/share/corella/` (or `$XDG_DATA_HOME/corella/`) |
+| Windows | `%APPDATA%\corella\` |
 
 `CORELLA_DATA_DIR` overrides it. `CORELLA_PORT` changes the port.
+`CORELLA_CWD` sets the directory a new chat starts in (otherwise the directory
+`npm start` was run from).
 `CORELLA_TRACE=1` logs every JSON-RPC frame to a JSONL file in the data
 directory. `CORELLA_DEV=1` additionally trusts Vite's origin on port 5173 —
 `npm run dev` sets it for you, and a normal run should not: 5173 is Vite's
@@ -113,6 +118,12 @@ running there. Vite is pinned to that port and refuses to start if it is
 taken; a `Port 5173 is already in use` means another dev server is still
 running — stop it rather than working around it, since the API would reject
 whatever port Vite moved to.
+
+The project was called KiroChrome before 0.1.0. The old `KIROCHROME_*` names
+are still read when the new one is not set, until 0.2.0. On first start,
+Corella moves an old `kirochrome` data folder to `corella` and renames
+`kirochrome.db` to `corella.db`, so your chats come with it. It never
+overwrites: if a `corella` folder already exists, the old one is left alone.
 
 If a provider fails, the setup page names the rung it failed on and what to do
 about it. Two common ones:

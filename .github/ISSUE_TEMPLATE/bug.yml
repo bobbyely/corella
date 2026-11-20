@@ -1,0 +1,34 @@
+name: Bug report
+description: Something does not work the way it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. Start Corella with `npm start`
+        2. ...
+  - type: input
+    id: agent
+    attributes:
+      label: Which agent
+      placeholder: Kiro CLI 1.x, Claude Code, Gemini CLI, Codex, the mock agent
+  - type: input
+    id: setup
+    attributes:
+      label: Corella version, OS, Node version and browser
+      placeholder: 0.1.0, macOS 15, Node 22.12, Firefox 140
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server output or error message
+      description: Remove anything private first, such as paths, tokens and code.
+      render: text
