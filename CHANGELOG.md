@@ -6,6 +6,10 @@ All notable changes to Corella are written down here. The format follows
 
 ## [Unreleased]
 
+**Upgrading:** Corella now needs **Node 22.16 or newer** (it said 22.5). It
+always did in practice: before 22.13 the server stops at start, and before
+22.16 search is missing. With nvm: `nvm install 22 && nvm use 22`.
+
 ### Added
 
 - **The On Air look.** A calmer chat in the family of a radio running sheet:
@@ -78,6 +82,7 @@ All notable changes to Corella are written down here. The format follows
 - **Dependency updates.** `ws` 8.23.0 fixes a memory-exhaustion bug a peer
   could trigger with a flood of pings. Vite, TypeScript and the rest are
   updated too.
+- **Vite 8 and its React plugin 6,** now that the minimum Node allows them.
 
 ## [0.1.0] - 2026-11-20
 

@@ -12,7 +12,7 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.16.0"
   },
   "scripts": {
     "build": "npm run build -w @corella/shared && npm run build -w @corella/server && npm run build -w @corella/web",

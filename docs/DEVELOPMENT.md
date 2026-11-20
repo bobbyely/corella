@@ -5,7 +5,11 @@ misbehaves. For the rules of the codebase see [AGENTS.md](../AGENTS.md).
 
 ## Running from a checkout
 
-Requires **Node 22.5+** (for the built-in `node:sqlite`). See `.nvmrc`.
+Requires **Node 22.16+**. Before 22.13 the built-in `node:sqlite` loads only
+behind a flag, so the server stops at start; before 22.16 its full-text search
+(FTS5) is missing, so search and most server tests fail. Vite 8 also needs a
+recent 22. See `.nvmrc`, which CI reads (it names `22`, so CI gets the latest
+22.x).
 
 ```bash
 git clone https://github.com/bobbyely/corella.git

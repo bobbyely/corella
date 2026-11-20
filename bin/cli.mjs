@@ -38,8 +38,9 @@ function parsePort(value, from) {
 }
 
 /**
- * Hand-rolled rather than node:util parseArgs: `--no-open` needs its
- * `allowNegative`, which Node only has from 22.14, and we support 22.5.
+ * Hand-rolled rather than node:util parseArgs, from when Corella supported
+ * Node 22.5, before parseArgs had the `allowNegative` that `--no-open` needs.
+ * It is tested and small, so it stayed when the minimum moved to 22.16.
  */
 export function parseCliArgs(argv, env = {}) {
   let open;

@@ -14,7 +14,7 @@ It talks to agents over the [Agent Client Protocol](https://agentclientprotocol.
 
 ## Quick start
 
-You need [Node](https://nodejs.org/) 22.5 or newer and git.
+You need [Node](https://nodejs.org/) 22.16 or newer and git.
 
 ```bash
 git clone https://github.com/bobbyely/corella.git

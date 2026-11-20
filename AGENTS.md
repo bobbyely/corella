@@ -221,7 +221,7 @@ Before you call anything finished:
 ## Tests
 
 `npm test` builds, then runs both suites. No test dependencies: `node:test` and
-`--experimental-strip-types` are built into Node 22.
+`--experimental-strip-types` are built into Node 22.16, the lowest Corella supports.
 
 - `packages/web/src/__tests__/*.test.ts` — pure logic (diffing, folding the
   event log into rows), run directly as TypeScript.
