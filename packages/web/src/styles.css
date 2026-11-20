@@ -308,8 +308,8 @@ a { color: inherit; }
   position: absolute;
   top: 0;
   bottom: 0;
-  right: -4px;
-  width: 7px;
+  right: 0;
+  width: 6px;
   cursor: col-resize;
   z-index: 1;
 }
