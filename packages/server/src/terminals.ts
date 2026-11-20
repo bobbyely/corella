@@ -104,7 +104,14 @@ export class TerminalRegistry {
       terminal.waiters.length = 0;
     };
 
-    child.once("exit", (code, signal) => settle({ exitCode: code, signal: signal ?? null }));
+    // 'exit' can fire before the last output is read, so a quick command
+    // looked like it printed nothing. Settle on 'close' (pipes drained), but
+    // not later than a moment after 'exit': a backgrounded grandchild can hold
+    // the pipes open for good.
+    child.once("close", (code, signal) => settle({ exitCode: code, signal: signal ?? null }));
+    child.once("exit", (code, signal) => {
+      setTimeout(() => settle({ exitCode: code, signal: signal ?? null }), 200).unref();
+    });
 
     // A command that cannot start emits 'error', not 'exit'. Without this the
     // unhandled event takes down the whole server — and the agent chooses these
