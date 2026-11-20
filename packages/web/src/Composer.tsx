@@ -536,12 +536,17 @@ function DraftAgentPicker({ draft }: { draft: DraftChoice }) {
 function FolderPicker({ draft }: { draft: DraftChoice }) {
   const [typing, setTyping] = useState(false);
   const [path, setPath] = useState("");
+  // Holds both the field and the menu's key, so Enter or Escape can hand
+  // focus back to the key once it is drawn again (a blur leaves focus be).
+  const wrap = useRef<HTMLSpanElement>(null);
   if (typing) {
-    const done = (commit: boolean) => {
+    const done = (commit: boolean, refocus = false) => {
       setTyping(false);
       if (commit && path.trim()) draft.onFolder(path.trim());
+      if (refocus) requestAnimationFrame(() => wrap.current?.querySelector("button")?.focus());
     };
     return (
+      <span className="folder-pick" ref={wrap}>
       <input
         className="pick folder-input"
         aria-label="Folder path"
@@ -554,18 +559,20 @@ function FolderPicker({ draft }: { draft: DraftChoice }) {
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            done(true);
+            done(true, true);
           }
           if (e.key === "Escape") {
             e.stopPropagation();
-            done(false);
+            done(false, true);
           }
         }}
       />
+      </span>
     );
   }
   const folders = draft.folders.includes(draft.cwd) || !draft.cwd ? draft.folders : [draft.cwd, ...draft.folders];
   return (
+    <span className="folder-pick" ref={wrap}>
     <MoreMenu
       heading="Recent folders"
       trigger={{
@@ -597,6 +604,7 @@ function FolderPicker({ draft }: { draft: DraftChoice }) {
         },
       ]}
     />
+    </span>
   );
 }
 

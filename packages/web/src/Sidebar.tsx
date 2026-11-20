@@ -1,4 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { ResizeHandle } from "./ResizeHandle.js";
 import { AgentConversationsSection, type AdoptTarget } from "./AgentConversations.js";
 import type { RoomView, ScheduleRun, ScheduleView, SessionSummary } from "@corella/shared";
@@ -77,7 +78,8 @@ export function Sidebar({
   const [renaming, setRenaming] = useState<string | null>(null);
   // The games live here rather than in Chat because this rail is on every
   // screen, and it already knows which conversation is waiting on the user.
-  // They are positioned fixed, so where they render makes no visual difference.
+  // They render into the body, not here: on a narrow screen this rail is
+  // transformed off screen, and a fixed panel inside it would go with it.
   const [playing, setPlaying] = useState(false);
   const awaitingInput = sessions?.some((s) => s.awaitingInput) ?? false;
 
@@ -349,11 +351,10 @@ export function Sidebar({
       </div>
       {/* Opened from the chat's ··· menu, not a floating button: one that
           floats over the chat can cover a permission prompt's keys. */}
-      <GamesPanel
-        open={playing}
-        awaitingInput={awaitingInput}
-        onClose={() => setPlaying(false)}
-      />
+      {createPortal(
+        <GamesPanel open={playing} awaitingInput={awaitingInput} onClose={() => setPlaying(false)} />,
+        document.body,
+      )}
     </aside>
   );
 }

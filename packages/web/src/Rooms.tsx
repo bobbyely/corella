@@ -31,6 +31,8 @@ const EMPTY: RoomInput = {
 };
 
 const describe = (err: unknown) => (err instanceof ApiError ? err.kc.message : String(err));
+/** A participant as a screen reader hears it on their controls: "Critic", or "participant 3" before it has a name. */
+const who = (p: { name: string }, i: number) => p.name.trim() || `participant ${i + 1}`;
 
 /** The list of rooms, and the form for a new one. */
 export function Rooms({ onOpenRoom }: { onOpenRoom: (id: string) => void }) {
@@ -218,20 +220,27 @@ function RoomForm({
         {form.participants.map((p, i) => (
           <div className="room-participant-block" key={i}>
             <div className="room-participant-head">
-              <span className="room-participant-n">{i + 1}</span>
+              <span className="room-participant-n" aria-hidden="true">{i + 1}</span>
               <strong>{p.name || "Unnamed"}</strong>
               <button
                 type="button"
                 className="room-participant-remove"
                 disabled={form.participants.length <= 2}
                 onClick={() => set("participants", form.participants.filter((_, j) => j !== i))}
+                aria-label={`Remove ${who(p, i)}`}
               >
                 Remove
               </button>
             </div>
             <div className="room-participant">
-              <input value={p.name} onChange={(e) => setParticipant(i, { name: e.target.value })} placeholder="Name" />
+              <input
+                value={p.name}
+                onChange={(e) => setParticipant(i, { name: e.target.value })}
+                placeholder="Name"
+                aria-label={`Name of participant ${i + 1}`}
+              />
               <select
+                aria-label={`Agent for ${who(p, i)}`}
                 value={p.providerId}
                 onChange={(e) => setParticipant(i, { providerId: e.target.value, start: {} })}
               >
@@ -241,7 +250,7 @@ function RoomForm({
                   </option>
                 ))}
               </select>
-              <input value={p.role} onChange={(e) => setParticipant(i, { role: e.target.value })} placeholder="Role, one line" />
+              <input value={p.role} onChange={(e) => setParticipant(i, { role: e.target.value })} placeholder="Role, one line" aria-label={`Role of ${who(p, i)}`} />
             </div>
             <StartPickers
               compact

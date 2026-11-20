@@ -44,9 +44,38 @@ export function App() {
   const drafts = useRef(0);
   // On a narrow screen the sidebar is a list that slides over the page.
   // Going anywhere closes it.
+  // Open, it behaves as a dialog: focus moves into it, the page behind is
+  // inert, and Escape closes it and puts focus back on the key that opened it.
   const [listOpen, setListOpen] = useState(false);
-  const showList = useCallback(() => setListOpen(true), []);
+  const listOpener = useRef<HTMLElement | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const showList = useCallback(() => {
+    listOpener.current = document.activeElement as HTMLElement | null;
+    setListOpen(true);
+  }, []);
+  const returnFocus = useRef(false);
+  const closeList = useCallback(() => {
+    returnFocus.current = true;
+    setListOpen(false);
+  }, []);
   useEffect(() => setListOpen(false), [view]);
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.inert = listOpen;
+    if (!listOpen) {
+      // Only once the page is no longer inert can it take focus back.
+      if (returnFocus.current) listOpener.current?.focus();
+      returnFocus.current = false;
+      return;
+    }
+    document.querySelector<HTMLElement>(".sidebar button")?.focus();
+    // Widened past the narrow layout while open: there is no list to close.
+    const wide = window.matchMedia("(min-width: 861px)");
+    const onWide = () => wide.matches && setListOpen(false);
+    wide.addEventListener("change", onWide);
+    return () => wide.removeEventListener("change", onWide);
+  }, [listOpen]);
+  const listOpenRef = useRef(listOpen);
+  listOpenRef.current = listOpen;
   const newChat = useCallback(() => setView({ name: "new", n: ++drafts.current }), []);
   // Bumped whenever a chat starts, so the sidebar refetches its list.
   const [listVersion, setListVersion] = useState(0);
@@ -63,9 +92,12 @@ export function App() {
       onNewChat: newChat,
       onFocusSearch: () => sidebarApi.current?.focusSearch(),
       onNextSession: (delta: number) => sidebarApi.current?.step(delta),
-      onEscape: () => setView((v) => (v.name === "chat" || v.name === "new" ? v : { name: "new", n: ++drafts.current })),
+      onEscape: () =>
+        listOpenRef.current
+          ? closeList()
+          : setView((v) => (v.name === "chat" || v.name === "new" ? v : { name: "new", n: ++drafts.current })),
     }),
-    [newChat],
+    [newChat, closeList],
   );
   useShortcuts(shortcuts);
 
@@ -98,8 +130,8 @@ export function App() {
         activeRoomId={view.name === "room" ? view.roomId : view.name === "chat" ? view.roomId : undefined}
       />
 
-      {listOpen && <button className="scrim" aria-label="Close the list" onClick={() => setListOpen(false)} />}
-      <main className="main">
+      {listOpen && <button className="scrim" aria-label="Close the list" onClick={closeList} />}
+      <main className="main" ref={mainRef}>
         {view.name !== "chat" && view.name !== "new" && (
           <button className="plain narrow-only list-back" onClick={showList}>
             <Icon name="back" />

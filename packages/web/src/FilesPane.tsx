@@ -115,11 +115,11 @@ export function FilesPane({ sessionId, cwd, events, live }: { sessionId: string;
                 {expanded.has(key(root, "")) ? "▾" : "▸"}
               </button>
               <span className="files-name">{basename(root)}</span>
-              <button className="files-action" onClick={() => refresh(root)} title="Read this directory again">
+              <button className="files-action" onClick={() => refresh(root)} title="Read this directory again" aria-label={`Read ${root} again`}>
                 ↻
               </button>
               {root !== cwd && (
-                <button className="files-action" onClick={() => void onRemoveRoot(root)} title="Remove from the pane" disabled={!live}>
+                <button className="files-action" onClick={() => void onRemoveRoot(root)} title="Remove from the pane" aria-label={`Remove ${root} from the pane`} disabled={!live}>
                   ×
                 </button>
               )}
