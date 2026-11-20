@@ -83,7 +83,25 @@ const MIME: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
   ".svg": "image/svg+xml",
   ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".woff2": "font/woff2",
+  ".webmanifest": "application/manifest+json",
 };
+
+/**
+ * Served without the login cookie, because browsers fetch a web app's
+ * manifest (and often its icons) without credentials: behind the login, the
+ * page could not be installed as an app. These files hold nothing but the
+ * app's name, colours and icon. Exact paths only, so nothing else slips past.
+ */
+const PUBLIC_FILES = new Set([
+  "/manifest.webmanifest",
+  "/icon.svg",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-512.png",
+  "/apple-touch-icon.png",
+]);
 
 export function startServer(port: number, webRoot: string | null): Server {
   const token = loadToken();
@@ -112,6 +130,11 @@ export function startServer(port: number, webRoot: string | null): Server {
       });
       res.end();
       return;
+    }
+    if (webRoot && req.method === "GET" && PUBLIC_FILES.has(url.pathname)) {
+      // No SPA fallback here: a missing icon is a 404, never the app's page.
+      if (!existsSync(join(webRoot, url.pathname))) return sendError(res, 404, kcError("FILE_UNKNOWN", `No ${url.pathname} in this build.`));
+      return serveStatic(res, webRoot, url.pathname);
     }
     if (!authorized(req, token, port)) {
       const error = kcError("AUTH_REQUIRED", "This browser is not logged in to Corella.");

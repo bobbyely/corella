@@ -51,7 +51,12 @@ export function resolveTheme(theme: Theme): NamedTheme {
 }
 
 export function applyTheme(theme: Theme): void {
-  document.documentElement.setAttribute("data-theme", resolveTheme(theme));
+  const root = document.documentElement;
+  root.setAttribute("data-theme", resolveTheme(theme));
+  // The installed app's title bar takes the theme's ground, read from the
+  // tokens so the colour is written in one place.
+  const ground = getComputedStyle(root).getPropertyValue("--ground").trim();
+  if (ground) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", ground);
   try {
     localStorage.setItem(KEY, theme);
   } catch {

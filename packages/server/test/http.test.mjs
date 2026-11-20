@@ -23,6 +23,8 @@ before(async () => {
   dir = mkdtempSync(join(tmpdir(), "kc-http-"));
   web = mkdtempSync(join(tmpdir(), "kc-web-"));
   writeFileSync(join(web, "index.html"), "<!doctype html><title>app</title>");
+  writeFileSync(join(web, "manifest.webmanifest"), JSON.stringify({ name: "Corella" }));
+  writeFileSync(join(web, "icon-192.png"), "png");
   process.env.CORELLA_DATA_DIR = dir;
   writeFileSync(
     join(dir, "config.json"),
@@ -60,6 +62,24 @@ describe("the login token", () => {
     });
     assert.equal(patch.status, 401);
     assert.match(readFileSync(join(dir, "config.json"), "utf8"), /\/bin\/true/);
+  });
+
+  it("serves the app manifest and its icons without it, and nothing else", async () => {
+    const manifest = await fetch(`${base}/manifest.webmanifest`);
+    assert.equal(manifest.status, 200);
+    assert.equal(manifest.headers.get("content-type"), "application/manifest+json");
+    assert.equal((await manifest.json()).name, "Corella");
+    const icon = await fetch(`${base}/icon-192.png`);
+    assert.equal(icon.status, 200);
+    assert.equal(icon.headers.get("content-type"), "image/png");
+
+    // A listed icon that is missing is a 404, not the app's page.
+    assert.equal((await fetch(`${base}/icon-512.png`)).status, 404);
+    // Everything else still needs the login.
+    assert.equal((await fetch(`${base}/api/providers`)).status, 401);
+    assert.equal((await fetch(`${base}/index.html`)).status, 401);
+    assert.equal((await fetch(`${base}/manifest.webmanifest/../index.html`)).status, 401);
+    assert.equal((await fetch(`${base}/manifest.webmanifest`, { method: "POST" })).status, 401);
   });
 
   it("refuses a wrong token, and a near miss", async () => {

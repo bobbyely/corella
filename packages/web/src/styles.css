@@ -756,21 +756,6 @@ kbd {
 .head-action { display: inline-flex; align-items: center; height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r-key); font-size: var(--fs-md); color: var(--text); text-decoration: none; flex-shrink: 0; }
 .head-action:hover, .head-action.active { background: var(--surface); }
 
-/* A narrow chat column (the side pane open, or a small window): a tighter
-   gutter, the box under the times, and the readout without its labels. */
-@container chat (max-width: 820px) {
-  .chat-head, .transcript, .dock { padding-left: 16px; padding-right: 16px; }
-  .chat-head { gap: 8px; }
-  .transcript-inner::before { left: 50px; }
-  .transcript-inner > .muted { padding-left: 62px; }
-  .step { grid-template-columns: 42px 1fr; column-gap: 16px; }
-  .composer { padding-left: 0; }
-  .readout .lab { display: none; }
-}
-@container chat (max-width: 560px) {
-  .readout { display: none; }
-}
-
 /* ---------- grouped work: a run of steps on one line until opened ---------- */
 .work > summary {
   display: flex;
@@ -1458,3 +1443,20 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
 .room .transcript-inner { gap: 12px; }
 .room .composer { padding-left: 0; }
 .room-msg-user .msg-user { align-self: flex-end; }
+
+/* Last in the file, so it wins over the wide rules above it.
+   A narrow chat column (the side pane open, or a small window): a tighter
+   gutter, the box under the times, and the readout without its labels. */
+@container chat (max-width: 820px) {
+  .chat-head, .transcript, .dock { padding-left: 16px; padding-right: 16px; }
+  .chat-head { gap: 8px; }
+  .transcript-inner::before { left: 50px; }
+  .transcript-inner > .muted { padding-left: 62px; }
+  .step { grid-template-columns: 42px 1fr; column-gap: 16px; }
+  .composer { padding-left: 0; }
+  .readout .lab { display: none; }
+}
+@container chat (max-width: 560px) {
+  .readout { display: none; }
+}
+
