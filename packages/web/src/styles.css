@@ -1,24 +1,63 @@
 /* ===========================================================================
-   Corella — visual system
+   Corella — visual system: "On Air"
 
-   Direction: terminal-noir. Near-black ground, ONE aqua accent, monospace
-   chrome, hairline borders, square corners. Restraint is the point: everything
-   glowing means nothing stands out, and this is read for hours.
+   A radio running sheet, in the family of the owner's Whipbird music app: a
+   cream body, near-black ink, a few strong colours, one glowing glass screen,
+   small capital labels between solid rules, and raised keys only where a press
+   matters (New chat, Send, Allow / Deny). Calm on purpose: this is read for
+   hours. The approved comps and the reasoning are in design/README.md.
 
-   Everything below is built from the tokens in this first block. Change a
-   token, not a component.
+   Everything below is built from the tokens in the first blocks. A theme is one
+   block: add a theme by adding a block here and a line in theme.ts.
    =========================================================================== */
+
+/* --- fonts: self-hosted, both SIL OFL (licences beside the files) ---
+   Local-first: nothing is fetched from anywhere but this server. */
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  src: url("./fonts/archivo-latin-wdth-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  src: url("./fonts/archivo-latin-ext-wdth-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Red Hat Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 700;
+  src: url("./fonts/red-hat-mono-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Red Hat Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 700;
+  src: url("./fonts/red-hat-mono-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 
 :root {
   /* --- type scale ---
      In rem so a reader who raises the browser's font size gets bigger text.
-     11px is the floor: 2xs and xs match on purpose, so labels written as 2xs
-     cannot drop below it. */
-  --fs-2xs: 0.6875rem; /* 11px */
-  --fs-xs: 0.6875rem;  /* 11px */
-  --fs-sm: 0.75rem;    /* 12px */
-  --fs-md: 0.8125rem;  /* 13px */
-  --fs-base: 0.875rem; /* 14px */
+     12px is the floor, for labels only; body text is 14–15px. The small names
+     are kept so older rules read the same, but none of them goes below 12. */
+  --fs-2xs: 0.75rem;   /* 12px: labels */
+  --fs-xs: 0.75rem;    /* 12px */
+  --fs-sm: 0.8125rem;  /* 13px: mono beside prose, times */
+  --fs-md: 0.875rem;   /* 14px: chrome, secondary text */
+  --fs-base: 0.9375rem; /* 15px: what you read */
   --fs-lg: 1.0625rem;  /* 17px */
   --fs-xl: 1.375rem;   /* 22px */
 
@@ -30,40 +69,77 @@
   --sp-5: 24px;
   --sp-6: 32px;
 
-  /* --- geometry: square, not soft --- */
-  --r-sm: 2px;
-  --r-md: 3px;
-  --r-pill: 2px;
+  /* --- geometry: soft hardware corners --- */
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-key: 7px;
+  --r-pill: 4px;
+  /* Rules and outlines: one weight for structure, a hairline for detail. */
+  --rule-w: 1.5px;
 
-  --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: "Red Hat Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
 
-  /* --- colour: light-dark(light, dark), so each theme is written once ---
-     `color-scheme` picks the side: the system's choice by default, or the
-     explicit choice from data-theme below. Light is clean and technical, not a
-     washed-out copy of the dark one. */
-  color-scheme: light dark;
-  --bg: light-dark(#f4f6f6, #050708);
-  --surface: light-dark(#ffffff, #0b1012);
-  --raised: light-dark(#eceff0, #121a1c);
-  --border: light-dark(#d5dbdc, #1c2629);
-  --border-strong: light-dark(#b9c2c4, #2b3a3e);
-  --text: light-dark(#10181a, #dce7e8);
-  --muted: light-dark(#5c6b6e, #7c8f93);
-  --accent: light-dark(#00807a, #2ef2da);
-  --accent-ink: light-dark(#ffffff, #04100f);
-  --accent-dim: light-dark(rgb(0 128 122 / 0.12), rgb(46 242 218 / 0.14));
-  --ok: light-dark(#1c7a4f, #35e08f);
-  --ok-bg: light-dark(#e2f2ea, rgb(53 224 143 / 0.12));
-  --fail: light-dark(#b3341f, #ff5f7e);
-  --fail-bg: light-dark(#fcebe8, rgb(255 95 126 / 0.12));
-  --warn: light-dark(#8a5a06, #ffb347);
-  --warn-bg: light-dark(#fbf1de, rgb(255 179 71 / 0.12));
-  /* Glow is dark-only; in light the shadow is transparent, so drawn as nothing. */
-  --glow: 0 0 12px light-dark(transparent, rgb(46 242 218 / 0.35));
+/* --- themes: one block each. Keys are the comps' tokens (design/README.md).
+   ground/sidebar/surface/line: the room. text/muted: ink.
+   onair: working (teal lamp). cue: needs you, and errors — red means one thing.
+   new: a reply you have not read. keycap/keyhot/well: the raised keys and their
+   socket. glass/glow/warm: the readout, the one screen in the room. */
+:root,
+[data-theme="cream"] {
+  color-scheme: light;
+  --ground: #ece4d2; --sidebar: #e3d9c3; --surface: #f6f0e2; --line: #cdc2a8; --rule: #1d1c19;
+  --text: #1d1c19; --muted: #5c554a; --sel: #f2cf7e;
+  --onair: #177f83; --onair-ink: #ffffff; --cue: #b52a35; --cue-ink: #ffffff;
+  --new: #1d1c19; --new-ink: #f6f0e2; --ok: #12676a; --warn: #8a5a06;
+  --keycap: #f8edcc; --keyink: #1d1c19; --keyhot: #2a2824; --keyhot-ink: #f8edcc; --well: #1c1b18;
+  --glass: #0d3433; --glow: #8ff0d0; --warm: #ffb36b;
+  --add-bg: #d5e6dc; --add-ink: #0d5658; --del-bg: #f1d4cf; --del-ink: #8f1f28;
+  --cue-tint: #f3dcd6;
+}
+[data-theme="studio"] {
+  color-scheme: dark;
+  --ground: #141518; --sidebar: #0e0f11; --surface: #1d1e22; --line: #2e3036; --rule: #ecebe6;
+  --text: #ecebe6; --muted: #a3a199; --sel: #3d5d5a;
+  --onair: #3cc2b4; --onair-ink: #08201e; --cue: #ff6b72; --cue-ink: #1d0b0c;
+  --new: #ecebe6; --new-ink: #141518; --ok: #5fd3c4; --warn: #ffb36b;
+  --keycap: #3a3b41; --keyink: #ecebe6; --keyhot: #ecebe6; --keyhot-ink: #141518; --well: #030304;
+  --glass: #0d3433; --glow: #8ff0d0; --warm: #ffb36b;
+  --add-bg: #14302c; --add-ink: #8fe3cf; --del-bg: #3b1b1e; --del-ink: #ff9ea4;
+  --cue-tint: #2c1a1d;
+}
+[data-theme="glass"] {
+  color-scheme: dark;
+  --ground: #0d3433; --sidebar: #082625; --surface: #11403f; --line: #1f5856; --rule: #8ff0d0;
+  --text: #dcf6ec; --muted: #93c6b6; --sel: #2a6b66;
+  --onair: #8ff0d0; --onair-ink: #08201e; --cue: #ff7a6b; --cue-ink: #200a07;
+  --new: #ffb36b; --new-ink: #231104; --ok: #8ff0d0; --warn: #ffb36b;
+  --keycap: #1c5250; --keyink: #dcf6ec; --keyhot: #dcf6ec; --keyhot-ink: #0d3433; --well: #031413;
+  --glass: #051c1b; --glow: #8ff0d0; --warm: #ffb36b;
+  --add-bg: #1b5e4c; --add-ink: #aef5da; --del-bg: #4a2427; --del-ink: #ffb3aa;
+  --cue-tint: #2a2e2a;
+}
 
-  /* --- syntax: Tokyo Night in dark, a matching set for light --- */
-  --syn-comment: light-dark(#6b7280, #6b7394);
+/* Roles the rules below use, derived from the theme block in force. Declared
+   wherever a theme is, so a swatch carrying its own data-theme derives its own. */
+:root,
+[data-theme] {
+  --bg: var(--ground);
+  --raised: color-mix(in srgb, var(--line) 40%, var(--surface));
+  --border: var(--line);
+  --border-strong: color-mix(in srgb, var(--text) 28%, var(--line));
+  --accent: var(--onair);
+  --accent-ink: var(--onair-ink);
+  --accent-dim: color-mix(in srgb, var(--onair) 14%, transparent);
+  --ok-bg: color-mix(in srgb, var(--ok) 14%, transparent);
+  --fail: var(--cue);
+  --fail-bg: var(--cue-tint);
+  --warn-bg: color-mix(in srgb, var(--warn) 14%, transparent);
+
+  /* --- syntax: Tokyo Night on the dark themes, a matching set on Cream ---
+     light-dark() follows each theme block's color-scheme. */
+  --syn-comment: light-dark(#6b6457, #7f8bb0);
   --syn-keyword: light-dark(#7c3aed, #bb9af7);
   --syn-string: light-dark(#276749, #9ece6a);
   --syn-number: light-dark(#9a4a02, #ff9e64);
@@ -73,18 +149,13 @@
   --syn-variable: light-dark(#334155, #c0caf5);
 }
 
-/* An explicit choice beats the system preference. */
-:root[data-theme="light"] { color-scheme: light; }
-:root[data-theme="dark"] { color-scheme: dark; }
-
 * { box-sizing: border-box; }
 
-/* Scrollbars in the theme's own hairline, everywhere: the transcript, the
-   sidebar, a diff. Thin and quiet — they are read past, not looked at. */
+/* Scrollbars in the theme's own line colour, everywhere. Thin and quiet. */
 * { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--r-sm); border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
 *::-webkit-scrollbar-thumb:hover { background-color: var(--muted); }
 *::-webkit-scrollbar-corner { background: transparent; }
 
@@ -92,46 +163,127 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  /* Monospace chrome: the app should read as an instrument. Prose gets a sans
-     face where it is actually read at length — see .md below. */
-  font: var(--fs-md)/1.5 var(--mono);
+  font: 400 var(--fs-base)/1.55 var(--sans);
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+  caret-color: var(--onair);
 }
 
-::selection { background: var(--accent); color: var(--accent-ink); }
+::selection { background: var(--sel); color: var(--text); }
+code, kbd, pre, .mono { font-family: var(--mono); }
 
+/* A plain button: text on the ground, a light fill on hover. The raised key
+   (.hw) is a separate thing, kept for the few presses that matter. */
 button {
   font: inherit;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-md);
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--r-sm);
   border: 1px solid var(--border);
   background: transparent;
-  color: var(--muted);
+  color: var(--text);
   cursor: pointer;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
-button:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
-button:disabled { opacity: 0.4; cursor: default; }
-button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: 1px;
+button:hover:not(:disabled) { background: var(--raised); }
+button:disabled { opacity: 0.45; cursor: default; }
+:focus-visible { outline: 2px solid var(--onair); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--onair);
+  outline-offset: 2px;
 }
 
-/* Primary actions are solid accent with dark ink — the reference's strongest move. */
+/* The strongest plain action on a page: ink on the ground, no key. */
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
+  background: var(--keyhot);
+  border-color: var(--keyhot);
+  color: var(--keyhot-ink);
   font-weight: 600;
-  letter-spacing: 0.02em;
 }
-button.primary:hover:not(:disabled) { box-shadow: var(--glow); color: var(--accent-ink); }
+button.primary:hover:not(:disabled) { background: var(--keyhot); filter: brightness(1.08); }
 
-input, textarea, select { font-family: var(--mono); }
+input, textarea, select { font-family: var(--sans); font-size: var(--fs-md); color: var(--text); }
 ::placeholder { color: var(--muted); opacity: 1; }
+a { color: inherit; }
 
 .muted { color: var(--muted); }
+
+/* --- the raised key: a cap in a thin dark socket ---
+   Only New chat, Send and Allow / Deny get one. The socket is a 1px ring and
+   the drop under the cap is 1.5px: thicker reads as a cartoon (found on
+   Whipbird), so keep both thin. */
+.hw {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--r-key);
+  background: var(--keycap) linear-gradient(rgb(255 255 255 / 0.24), rgb(255 255 255 / 0) 50%, rgb(0 0 0 / 0.06));
+  color: var(--keyink);
+  font-weight: 600;
+  font-size: var(--fs-md);
+  white-space: nowrap;
+  box-shadow:
+    0 0 0 1px var(--well),
+    0 1.5px 0 1px var(--well),
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    inset 0 -1px 0 rgb(0 0 0 / 0.14);
+  margin-bottom: 2px;
+  transition: transform 0.06s, box-shadow 0.06s, filter 0.12s;
+}
+.hw:hover:not(:disabled) { background-color: var(--keycap); filter: brightness(1.04); }
+.hw.hot { background-color: var(--keyhot); color: var(--keyhot-ink); box-shadow: 0 0 0 1px var(--well), 0 1.5px 0 1px var(--well), inset 0 1px 0 rgb(255 255 255 / 0.2), inset 0 -1px 0 rgb(0 0 0 / 0.3); }
+.hw.hot:hover:not(:disabled) { background-color: var(--keyhot); }
+/* Pressed: the cap sinks into its socket. */
+.hw:active:not(:disabled), .hw.down {
+  transform: translateY(1.5px);
+  box-shadow: 0 0 0 1px var(--well), 0 0 0 1px var(--well), inset 0 1px 3px rgb(0 0 0 / 0.2);
+}
+.hw:disabled { opacity: 0.5; }
+.hw kbd { font-size: var(--fs-2xs); font-weight: 500; padding: 0 5px; border-radius: 4px; border: 1px solid currentColor; background: none; opacity: 0.7; line-height: 1.4; }
+.hw.wide { width: 100%; justify-content: flex-start; }
+.hw.wide kbd { margin-left: auto; }
+.hw.send { width: 40px; padding: 0; }
+
+/* --- a section label between solid rules, as on the Whipbird body --- */
+.rule-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 600 var(--fs-2xs)/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.rule-label::before, .rule-label::after { content: ""; height: var(--rule-w); background: var(--rule); opacity: 0.35; flex: 1; }
+.rule-label::before { flex: 0 0 12px; }
+
+/* --- the state tags: a word and a shape each, never colour alone --- */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--r-pill);
+  font: 700 var(--fs-2xs)/1 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.tag.onair { background: var(--onair); color: var(--onair-ink); }
+.tag.cue { background: var(--cue); color: var(--cue-ink); }
+.tag.new { background: var(--new); color: var(--new-ink); }
+.tag.off { border: var(--rule-w) dashed var(--muted); color: var(--muted); text-decoration: line-through; padding: 0 6px; }
+.lamp { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 25%, transparent); flex-shrink: 0; }
+.tag.onair .lamp { animation: lamp 1.6s ease-in-out infinite; }
+@keyframes lamp { 50% { opacity: 0.45; } }
+
+/* Icons: one stroke family (icons.tsx). */
+.icon { flex: none; }
 
 /* ---------- app shell ---------- */
 .shell { display: grid; grid-template-columns: var(--sidebar-width, 264px) 1fr; height: 100vh; }

@@ -134,6 +134,8 @@ export interface SessionSummary {
    * the server, so it survives a reload and agrees across tabs.
    */
   unread: boolean;
+  /** When the chat last changed, in ms. Filled in for the sidebar's list. */
+  updatedAt?: number;
 }
 
 /**

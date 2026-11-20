@@ -3,7 +3,7 @@ import { CHECK_STAGES } from "@corella/shared";
 import type { CheckStage, HostPlatform, KcError, ProviderCheckResult, ProviderView } from "@corella/shared";
 import { ApiError, fetchProviders, runCheck, updateProvider } from "./api.js";
 import { cardStatus, isReady } from "./providerStatus.js";
-import { applyTheme, effectiveTheme, loadTheme, type Theme } from "./theme.js";
+import { applyTheme, loadTheme, resolveTheme, THEMES, type Theme } from "./theme.js";
 
 export function Setup() {
   const [providers, setProviders] = useState<ProviderView[] | null>(null);
@@ -62,7 +62,7 @@ export function Setup() {
   return (
     <div className="page">
       <header className="header">
-        <h1>Setup</h1>
+        <h1>Settings</h1>
         <p className="subtitle">
           Verify each agent before you rely on it. A provider must pass every rung before it can
           be used for a new chat.
@@ -79,6 +79,7 @@ export function Setup() {
       <ThemePicker />
       <Shortcuts />
 
+      <h2 className="section-label rule-label agents-label">Agents</h2>
       {!providers && !loadError && <p className="muted">Loading providers…</p>}
 
       <div className="cards">
@@ -98,16 +99,18 @@ export function Setup() {
   );
 }
 
+const THEME_CHOICES: Array<{ id: Theme; name: string; note: string }> = [
+  ...THEMES,
+  { id: "system", name: "System", note: "Cream or Studio, following your computer's light or dark setting." },
+];
+
 /**
- * A switch rather than three buttons.
- *
- * "System" is still honoured — it is simply the starting state rather than a
- * third position. Flicking the switch makes an explicit choice; "follow system"
- * hands control back, and only appears once there is something to hand back.
+ * One radio per theme, each with a swatch of its own ground, text and lamp.
+ * The swatch carries `data-theme`, so it shows the theme's real tokens rather
+ * than a second copy of them.
  */
 function ThemePicker() {
   const [theme, setTheme] = useState<Theme>(loadTheme);
-  const dark = effectiveTheme(theme) === "dark";
 
   const choose = (next: Theme) => {
     setTheme(next);
@@ -116,27 +119,25 @@ function ThemePicker() {
 
   return (
     <section className="theme">
-      <h2 className="section-label">Appearance</h2>
-      <div className="theme-row">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={dark}
-          aria-label="Dark mode"
-          className={`switch ${dark ? "on" : ""}`}
-          onClick={() => choose(dark ? "light" : "dark")}
-        >
-          <span className="switch-track">
-            <span className="switch-knob" />
-          </span>
-          <span className="switch-label">{dark ? "Dark" : "Light"}</span>
-        </button>
-
-        {theme !== "system" && (
-          <button className="setup-link" onClick={() => choose("system")}>
-            Follow system
-          </button>
-        )}
+      <h2 className="section-label rule-label">Appearance</h2>
+      <div className="theme-choices" role="radiogroup" aria-label="Theme">
+        {THEME_CHOICES.map((choice) => (
+          <label key={choice.id} className={`theme-choice ${theme === choice.id ? "on" : ""}`}>
+            <input
+              type="radio"
+              name="theme"
+              value={choice.id}
+              checked={theme === choice.id}
+              onChange={() => choose(choice.id)}
+            />
+            <span className="theme-swatch" data-theme={resolveTheme(choice.id)} aria-hidden="true">
+              <i />
+              <i />
+            </span>
+            <span className="theme-name">{choice.name}</span>
+            <span className="theme-note">{choice.note}</span>
+          </label>
+        ))}
       </div>
     </section>
   );
@@ -231,7 +232,7 @@ const SHORTCUTS: Array<[string, string]> = [
 function Shortcuts() {
   return (
     <section className="theme">
-      <h2 className="section-label">Keyboard</h2>
+      <h2 className="section-label rule-label">Keyboard</h2>
       <dl className="shortcuts">
         {SHORTCUTS.map(([keys, what]) => (
           <div key={keys}>

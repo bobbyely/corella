@@ -252,7 +252,7 @@ export class SessionManager {
     return this.store.listSessions(limit, includeArchived).map((record) => {
       const session = this.live.get(record.id);
       const summary = session ? session.summary() : this.summary(record.id);
-      return { ...summary, title: record.title, archived: record.status === "archived", unread: unread.has(record.id) };
+      return { ...summary, title: record.title, archived: record.status === "archived", unread: unread.has(record.id), updatedAt: record.updatedAt };
     });
   }
 

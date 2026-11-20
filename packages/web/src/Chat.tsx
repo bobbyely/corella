@@ -5,6 +5,7 @@ import type {
   ElicitationField,
   ElicitationValue,
   Handoff,
+  KcEvent,
   ProviderRef,
   SessionUsage,
   StartOptions,
@@ -18,7 +19,19 @@ import { collectChanges } from "./changes.js";
 import { CodeBlock, DiffView } from "./DiffView.js";
 import { MarkdownBody } from "./Markdown.js";
 import { countChanges, lineDiff } from "./diff.js";
-import { buildRows, languageFor, toolContent, toolSubtitle, type Row, type ToolDiff } from "./timeline.js";
+import { CueMark, Icon, type IconName } from "./icons.js";
+import { MoreMenu } from "./MoreMenu.js";
+import {
+  buildRows,
+  clockLabel,
+  currentTurnStart,
+  languageFor,
+  toolContent,
+  toolSubtitle,
+  turnTimes,
+  type Row,
+  type ToolDiff,
+} from "./timeline.js";
 import { useChat } from "./useChat.js";
 
 /** Rows rendered initially, and how many more each "show earlier" adds. */
@@ -34,6 +47,7 @@ export function Chat({
   onStarted,
   onOpenSetup,
   onBack,
+  onPlay,
 }: {
   providerId?: string;
   cwd?: string;
@@ -45,6 +59,8 @@ export function Chat({
   onOpenSetup?: () => void;
   /** Where this conversation was opened from, when that is not the sidebar. */
   onBack?: (() => void) | undefined;
+  /** Opens the word games, which live with the sidebar. */
+  onPlay?: () => void;
 }) {
   const {
     connected,
@@ -121,6 +137,8 @@ export function Chat({
   const hidden = Math.max(0, allRows.length - windowSize);
   const rows = hidden > 0 ? allRows.slice(hidden) : allRows;
   const usage = useMemo(() => latestUsage(events), [events]);
+  // The running sheet: each row's time since its turn began.
+  const times = useMemo(() => turnTimes(events), [events]);
   // Counted here as well as in the pane, so the button can say there is
   // something behind it before it is opened.
   const changed = useMemo(() => collectChanges(events).length, [events]);
@@ -186,50 +204,55 @@ export function Chat({
       <div className="chat">
         <header className="chat-head">
           {onBack && (
-            <button className="head-action" onClick={onBack} title="Back to the schedule's runs">
-              ← Runs
+            <button className="plain" onClick={onBack} title="Back to where this chat was opened from">
+              <Icon name="back" />
+              Back
             </button>
           )}
           <div className="chat-title">
-            <strong>{session?.title ?? session?.providerName ?? "Conversation"}</strong>
-            {session && <code className="cmd">{session.cwd}</code>}
+            <h1>{session?.title ?? session?.providerName ?? "Conversation"}</h1>
+            {session && (
+              <p className="chat-sub">
+                {session.providerName} · <code title={session.cwd}>{shortFolder(session.cwd)}</code>
+                {!connected && <span className="chat-offline"> · Reconnecting…</span>}
+              </p>
+            )}
           </div>
-          {session && (
-            // A plain link: the server sets content-disposition, so the browser
-            // handles the download without any client-side blob juggling.
-            <a
-              className="head-action"
-              href={`/api/sessions/${encodeURIComponent(session.id)}/export`}
-              download
-              title="Export this conversation as Markdown"
-            >
-              Export
-            </a>
-          )}
-          {session && (
-            <button
-              className={`head-action ${pane === "changes" ? "active" : ""} ${changed > 0 ? "has-changes" : ""}`}
-              onClick={() => setPane((p) => (p === "changes" ? null : "changes"))}
-              title="Files the agent has changed this conversation"
-            >
-              Changes{changed > 0 && <span className="head-count">{changed}</span>}
-            </button>
-          )}
-          {session && (
-            <button
-              className={`head-action ${pane === "files" ? "active" : ""}`}
-              onClick={() => setPane((p) => (p === "files" ? null : "files"))}
-              title="Browse the conversation's directories"
-            >
-              Files
-            </button>
-          )}
           {/* Live sessions always show it; a restored one shows it whenever its
               log holds usage, since that history is still meaningful. */}
-          {(session?.live || usage) && <ContextMeter usage={usage} />}
-          <span className={`pill ${connected ? "pill-ok" : "pill-stale"}`}>
-            {connected ? "Connected" : "Reconnecting…"}
-          </span>
+          {(session?.live || usage) && <Readout events={events} busy={busy} usage={usage} />}
+          {session && (
+            <button
+              className={`plain ${pane === "changes" ? "active" : ""}`}
+              onClick={() => setPane((p) => (p === "changes" ? null : "changes"))}
+              title="Files the agent has changed in this chat"
+              aria-pressed={pane === "changes"}
+            >
+              <Icon name="panel" />
+              Changes
+              {changed > 0 && <span className="count">{changed}</span>}
+            </button>
+          )}
+          {session && (
+            <MoreMenu
+              items={[
+                {
+                  label: pane === "files" ? "Hide files" : "Files",
+                  icon: <Icon name="folder" />,
+                  onSelect: () => setPane((p) => (p === "files" ? null : "files")),
+                },
+                // A plain link: the server sets content-disposition, so the
+                // browser handles the download without client-side blobs.
+                {
+                  label: "Export as Markdown",
+                  icon: <Icon name="download" />,
+                  href: `/api/sessions/${encodeURIComponent(session.id)}/export`,
+                  download: true,
+                },
+                ...(onPlay ? [{ label: "Play a word game", icon: <Icon name="play" />, onSelect: onPlay }] : []),
+              ]}
+            />
+          )}
         </header>
 
         <div className="transcript" ref={transcript} onScroll={onScroll}>
@@ -243,18 +266,21 @@ export function Chat({
               </button>
             )}
             {rows.map((row) => (
-              <Message
-                key={row.seq}
-                row={row}
-                onPermission={answerPermission}
-                onElicitation={answerElicitation}
-                handoffFor={handoffFor}
-              />
+              <Step key={row.seq} time={times.get(row.seq)} cue={isOpenAsk(row)} divider={row.kind === "divider"}>
+                <Message
+                  row={row}
+                  onPermission={answerPermission}
+                  onElicitation={answerElicitation}
+                  handoffFor={handoffFor}
+                />
+              </Step>
             ))}
-            {busy && (
-              <div className="thinking">
-                <KSpinner label={session?.awaitingInput ? "Waiting for you" : "Working"} />
-              </div>
+            {busy && !session?.awaitingInput && (
+              <Step time={undefined}>
+                <div className="thinking">
+                  <KSpinner label="Working" />
+                </div>
+              </Step>
             )}
             <div ref={bottom} />
           </div>
@@ -274,7 +300,7 @@ export function Chat({
             </div>
             {/* A provider fault is not this conversation's problem to solve. */}
             {isProviderFault(error.code) && onOpenSetup && (
-              <button onClick={onOpenSetup}>Go to Setup</button>
+              <button onClick={onOpenSetup}>Go to Settings</button>
             )}
           </div>
         )}
@@ -342,6 +368,41 @@ export function Chat({
 }
 
 /**
+ * One line of the running sheet: the time since the turn began down a ruled
+ * left gutter, and the row beside it. Rows between turns get no time.
+ */
+function Step({
+  time,
+  cue = false,
+  divider = false,
+  children,
+}: {
+  time: number | undefined;
+  cue?: boolean;
+  divider?: boolean;
+  children: React.ReactNode;
+}) {
+  if (divider) return <div className="step-gap" aria-hidden="true" />;
+  return (
+    <div className={`step ${cue ? "cue" : ""}`}>
+      <span className="cuet">{time !== undefined ? clockLabel(time) : ""}</span>
+      <div className="step-body">{children}</div>
+    </div>
+  );
+}
+
+/** A question still waiting on you: its time is marked in the cue colour. */
+function isOpenAsk(row: Row): boolean {
+  return (row.kind === "permission" && row.answeredWith === null) || (row.kind === "elicitation" && row.answer === null);
+}
+
+/** The last two parts of a path: enough to know the project, and nothing personal. */
+function shortFolder(path: string): string {
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  return parts.length <= 2 ? path : parts.slice(-2).join("/");
+}
+
+/**
  * One transcript row.
  *
  * Memoized because rendering a row is expensive — a prose row parses markdown
@@ -394,8 +455,9 @@ const Message = memo(function Message({
         </div>
       );
     case "agent":
+      // Plain text on the page, not a box: the agent's words are the content.
       return (
-        <div className="msg msg-agent">
+        <div className="msg-agent">
           <MarkdownBody>{row.text}</MarkdownBody>
         </div>
       );
@@ -466,9 +528,9 @@ function WorkGroup({
       onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
     >
       <summary>
-        <span className={`work-mark ${row.active ? "active" : ""}`}>{row.active ? "◐" : "●"}</span>
-        <span>{parts.join(" · ") || "Work"}</span>
-        {latest?.kind === "tool" && <span className="work-now">{latest.title}</span>}
+        <span className="work-mark">{row.active ? <i className="lamp" /> : <Icon name="chevRight" size={14} />}</span>
+        <span className="work-what">{parts.join(" · ") || "Work"}</span>
+        {latest?.kind === "tool" && <code className="work-now">{latest.title}</code>}
       </summary>
       <div className="work-children">
         {row.children.map((child) => (
@@ -485,36 +547,43 @@ function WorkGroup({
   );
 }
 
-const STATUS_MARK: Record<string, string> = {
-  pending: "○",
-  in_progress: "◐",
-  completed: "●",
-  failed: "✗",
-};
-
-const KIND_MARK: Record<string, string> = {
-  read: "◇", edit: "✎", delete: "␡", move: "⇄", search: "⌕",
-  execute: "▸", think: "◌", fetch: "↓", switch_mode: "⇋", other: "•",
+/** An icon per kind of action, so a step reads at a glance. */
+const KIND_ICON: Record<string, IconName> = {
+  read: "file", edit: "edit", delete: "cross", move: "chevRight", search: "search",
+  execute: "term", think: "think", fetch: "download", switch_mode: "chevRight",
 };
 
 /**
- * One agent action, with all of its updates folded in, collapsed until asked.
- * An always-expanded transcript of tool output is unreadable.
+ * One agent action, with all of its updates folded in: a single line until
+ * opened. An edit opens to its diff, which is what you came to see; anything
+ * else stays shut, since a transcript of tool output is unreadable.
  */
 function ToolCard({ row }: { row: Extract<Row, { kind: "tool" }> }) {
   const subtitle = toolSubtitle(row.details);
   const content = toolContent(row.details);
   const hasBody = content.diffs.length > 0 || content.texts.length > 0;
   const summary = content.diffs.length > 0 ? diffSummary(content.diffs) : null;
+  const running = row.status === "pending" || row.status === "in_progress";
 
   return (
-    <details className={`tool tool-${row.status}`}>
+    <details className={`tool tool-${row.status}`} open={content.diffs.length > 0 ? true : undefined}>
       <summary>
-        <span className="tool-mark">{STATUS_MARK[row.status] ?? "○"}</span>
-        <span className="tool-kind">{KIND_MARK[row.toolKind] ?? "•"}</span>
+        <span className="tool-kind">
+          {running ? <i className="lamp" /> : <Icon name={KIND_ICON[row.toolKind] ?? "chevRight"} size={15} />}
+        </span>
         <span className="tool-title">{row.title}</span>
         {subtitle && subtitle !== row.title && <code className="tool-sub">{subtitle}</code>}
-        {summary && <span className="tool-stat">{summary}</span>}
+        {summary && (
+          <span className="tool-stat">
+            <ins>+{summary.added}</ins> <del>−{summary.removed}</del>
+          </span>
+        )}
+        {row.status === "failed" && (
+          <span className="tool-stat tool-failed-mark">
+            <Icon name="cross" size={14} />
+            Failed
+          </span>
+        )}
       </summary>
 
       <div className="tool-body">
@@ -542,7 +611,7 @@ function ToolCard({ row }: { row: Extract<Row, { kind: "tool" }> }) {
   );
 }
 
-function diffSummary(diffs: ToolDiff[]): string {
+function diffSummary(diffs: ToolDiff[]): { added: number; removed: number } {
   let added = 0;
   let removed = 0;
   for (const diff of diffs) {
@@ -553,10 +622,14 @@ function diffSummary(diffs: ToolDiff[]): string {
     added += counts.added;
     removed += counts.removed;
   }
-  return `+${added} −${removed}`;
+  return { added, removed };
 }
 
-/** The agent is blocked on this request until the user answers it. */
+/**
+ * The agent is blocked on this request until the user answers it: the CUE box,
+ * the one thing in the transcript allowed to shout. Its answers are raised keys,
+ * the first "allow once" the hot one, because a press here really matters.
+ */
 function PermissionCard({
   row,
   onAnswer,
@@ -566,30 +639,41 @@ function PermissionCard({
 }) {
   const answered = row.answeredWith !== null;
   const titleId = useId();
-  return (
-    <div className={`permission ${answered ? "answered" : ""}`} role="group" aria-labelledby={titleId}>
-      {/* An alert while open, so a screen reader hears what the agent is
-          blocked on, not only the spinner's "Waiting for you". */}
-      <div className="permission-title" id={titleId} role={answered ? undefined : "alert"}>
-        {row.title}
-      </div>
-      {answered ? (
+  if (answered) {
+    return (
+      <div className="ask answered" role="group" aria-labelledby={titleId}>
+        <span className="ask-t" id={titleId}>{row.title}</span>
         <span className="muted">
           {row.answeredWith === "cancelled" ? "Cancelled" : `Answered: ${row.answeredWith}`}
         </span>
-      ) : (
-        <div className="permission-actions">
-          {row.options.map((option) => (
-            <button
-              key={option.optionId}
-              className={option.kind.startsWith("allow") ? "primary" : ""}
-              onClick={() => onAnswer(row.requestId, option.optionId)}
-            >
-              {option.name}
-            </button>
-          ))}
-        </div>
-      )}
+      </div>
+    );
+  }
+  const hot = row.options.find((o) => o.kind === "allow_once") ?? row.options.find((o) => o.kind.startsWith("allow"));
+  return (
+    <div className="ask" role="group" aria-labelledby={titleId}>
+      <div className="ask-h">
+        <span className="tag cue">
+          <CueMark />
+          Cue
+        </span>
+        <span>Needs you</span>
+      </div>
+      {/* An alert, so a screen reader hears what the agent is blocked on. */}
+      <div className="ask-q ask-t" id={titleId} role="alert">
+        {row.title}
+      </div>
+      <div className="ask-b">
+        {row.options.map((option) => (
+          <button
+            key={option.optionId}
+            className={`hw ${option === hot ? "hot" : ""}`}
+            onClick={() => onAnswer(row.requestId, option.optionId)}
+          >
+            {option.name}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -851,46 +935,71 @@ function ElicitationInput({ field }: { field: ElicitationField }) {
 }
 
 /**
- * Context window remaining, read out of the log's usage updates.
+ * The glass readout: the one screen in the room, the same in every theme.
+ * TURN is how long the running turn has taken (ticking while it runs, then
+ * holding the last turn's length); CTX is how full the agent's memory is, as
+ * five lit segments and a number. Usage comes from the log's usage updates.
  *
- * Always rendered for a live session, showing "—" until the agent reports
- * usage: an absent meter is indistinguishable from a broken one, and not every
- * agent sends `usage_update` at all.
+ * CTX shows "—" until the agent reports usage: an absent meter is
+ * indistinguishable from a broken one, and not every agent sends usage.
  */
-function ContextMeter({ usage }: { usage: SessionUsage | null }) {
-  if (!usage || usage.size <= 0) {
-    return (
-      <div className="context-meter" title="This agent has not reported context usage">
-        <span className="context-label">context</span>
-        <span className="context-pct">—</span>
-      </div>
-    );
+function Readout({ events, busy, usage }: { events: KcEvent[]; busy: boolean; usage: SessionUsage | null }) {
+  const start = currentTurnStart(events);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!busy || start === null) return;
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [busy, start]);
+  const turnMs = start !== null && busy ? now - start : lastTurnLength(events);
+
+  const known = usage !== null && usage.size > 0;
+  const usedPct = known ? Math.min(100, Math.round((usage.used / usage.size) * 100)) : 0;
+  const lit = known ? Math.min(5, Math.ceil(usedPct / 20)) : 0;
+  let title = "This agent has not reported how full its memory is";
+  if (known) {
+    const { used, size, cost, credits, percentOnly } = usage;
+    const money = cost && new Intl.NumberFormat(undefined, { style: "currency", currency: cost.currency }).format(cost.amount);
+    const spend = money ?? (credits !== undefined ? `${credits.toFixed(2)} credits so far` : "");
+    // One decimal: a short turn moves a 200k window by a tenth of a percent,
+    // and the rounded figure would look stuck.
+    title = percentOnly
+      ? `${(100 - used).toFixed(1)}% of the context window left${spend ? ` · ${spend}` : ""}`
+      : `${(size - used).toLocaleString()} of ${size.toLocaleString()} tokens left ` +
+        `(${used.toLocaleString()} used)${spend ? ` · ${spend}` : ""}`;
   }
 
-  const { used, size, cost, credits, percentOnly } = usage;
-  const usedPct = Math.min(100, Math.round((used / size) * 100));
-  const leftPct = 100 - usedPct;
-  const money =
-    cost &&
-    new Intl.NumberFormat(undefined, { style: "currency", currency: cost.currency }).format(cost.amount);
-  const spend = money ?? (credits !== undefined ? `${credits.toFixed(2)} credits so far` : "");
-
-  // One decimal in the tooltip: a short turn moves a 200k window by a tenth
-  // of a percent, and the rounded figure would look stuck.
-  const title = percentOnly
-    ? `${(100 - used).toFixed(1)}% of the context window left${spend ? ` · ${spend}` : ""}`
-    : `${(size - used).toLocaleString()} of ${size.toLocaleString()} tokens left ` +
-      `(${used.toLocaleString()} used)${spend ? ` · ${spend}` : ""}`;
-
   return (
-    <div className="context-meter" title={title}>
-      <span className="context-label">context</span>
-      <div className="context-bar">
-        {/* The bar fills as the window is consumed; the number says what is left. */}
-        <div className={`context-fill ${usedPct >= 85 ? "high" : ""}`} style={{ width: `${usedPct}%` }} />
-      </div>
-      <span className={`context-pct ${leftPct <= 15 ? "low" : ""}`}>{leftPct}% left</span>
-      {credits !== undefined && <span className="context-spend">{credits.toFixed(2)} cr</span>}
+    <div
+      className="readout"
+      role="group"
+      aria-label={`Turn time ${turnMs !== null ? clockLabel(turnMs) : "none yet"}, context ${known ? `${usedPct} percent full` : "unknown"}`}
+      title={title}
+    >
+      <span className="lab">Turn</span>
+      <span className="clock">{turnMs !== null ? clockLabel(turnMs) : "--:--"}</span>
+      <span className="lab">Ctx</span>
+      <span className={`seg ${usedPct >= 85 ? "high" : ""}`} aria-hidden="true">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <i key={i} className={i < lit ? "on" : ""} />
+        ))}
+      </span>
+      <span>{known ? `${usedPct}%` : "—"}</span>
     </div>
   );
+}
+
+/** How long the last finished turn took, or null when none has finished. */
+function lastTurnLength(events: KcEvent[]): number | null {
+  let start: number | null = null;
+  let length: number | null = null;
+  for (const event of events) {
+    if (start === null && (event.type === "user_message" || event.type === "turn_start")) start = event.ts;
+    if (event.type === "turn_end" && start !== null) {
+      length = event.ts - start;
+      start = null;
+    }
+  }
+  return length;
 }

@@ -414,3 +414,39 @@ export function languageFor(path: string): string {
   // Own keys only: a file named `x.constructor` would otherwise get a function.
   return Object.hasOwn(map, ext) ? map[ext]! : "";
 }
+
+/** Seconds as a running-sheet time: `00:25`, or `1:02:07` past an hour. */
+export function clockLabel(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const mm = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const ss = String(total % 60).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/**
+ * The running sheet's times: for each event inside a turn, how long after the
+ * turn began it happened. The turn begins at your message (or the agent's
+ * `turn_start`, whichever is first) and ends at `turn_end`; anything between
+ * turns gets no time. Derived from the log, so a replay shows the same times.
+ */
+export function turnTimes(events: KcEvent[]): Map<number, number> {
+  const times = new Map<number, number>();
+  let start: number | null = null;
+  for (const event of events) {
+    if (start === null && (event.type === "user_message" || event.type === "turn_start")) start = event.ts;
+    if (start !== null) times.set(event.seq, event.ts - start);
+    if (event.type === "turn_end") start = null;
+  }
+  return times;
+}
+
+/** When the turn now running began, or null between turns. */
+export function currentTurnStart(events: KcEvent[]): number | null {
+  let start: number | null = null;
+  for (const event of events) {
+    if (start === null && (event.type === "user_message" || event.type === "turn_start")) start = event.ts;
+    if (event.type === "turn_end") start = null;
+  }
+  return start;
+}

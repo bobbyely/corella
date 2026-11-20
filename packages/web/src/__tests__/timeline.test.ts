@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { KcEvent } from "@corella/shared";
 import { latestUsage } from "@corella/shared";
-import { buildRows, languageFor, toolContent, toolSubtitle } from "../timeline.ts";
+import { buildRows, clockLabel, currentTurnStart, languageFor, toolContent, toolSubtitle, turnTimes } from "../timeline.ts";
 
 const ev = (e: Partial<KcEvent> & { type: KcEvent["type"] }, seq: number): KcEvent =>
   ({ seq, ts: 0, ...e }) as KcEvent;
@@ -244,5 +244,37 @@ describe("languageFor", () => {
     for (const name of ["x.constructor", "x.__proto__", "x.toString", "x.hasOwnProperty"]) {
       assert.equal(languageFor(name), "", name);
     }
+  });
+});
+
+describe("the running sheet's clock", () => {
+  const at = (type: string, seq: number, ts: number, extra = {}) => ({ seq, ts, type, ...extra }) as unknown as KcEvent;
+
+  it("times each step from the start of its turn, and leaves the gaps between turns untimed", () => {
+    const events = [
+      at("user_message", 1, 10_000, { text: "go" }),
+      at("turn_start", 2, 10_200),
+      at("agent_text", 3, 13_000, { text: "ok" }),
+      at("turn_end", 4, 35_400, { stopReason: "end_turn" }),
+      at("agent_update", 5, 40_000, { update: {} }),
+      at("turn_start", 6, 50_000),
+      at("agent_text", 7, 51_000, { text: "again" }),
+    ];
+    const times = turnTimes(events);
+    assert.equal(times.get(1), 0);
+    assert.equal(times.get(3), 3_000);
+    assert.equal(times.get(4), 25_400);
+    assert.equal(times.has(5), false);
+    assert.equal(times.get(7), 1_000);
+    assert.equal(currentTurnStart(events), 50_000);
+    assert.equal(currentTurnStart(events.slice(0, 5)), null);
+  });
+
+  it("labels as minutes and seconds, adding hours only past one", () => {
+    assert.equal(clockLabel(0), "00:00");
+    assert.equal(clockLabel(25_900), "00:25");
+    assert.equal(clockLabel(61_000), "01:01");
+    assert.equal(clockLabel(3_727_000), "1:02:07");
+    assert.equal(clockLabel(-5), "00:00");
   });
 });

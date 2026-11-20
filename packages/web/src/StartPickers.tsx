@@ -29,7 +29,7 @@ export function StartPickers({
 
   return (
     <div className={`start-pickers ${compact ? "compact" : ""}`}>
-      {stale && <span className="start-stale">Re-run this provider&rsquo;s check on Setup to choose a model here.</span>}
+      {stale && <span className="start-stale">Re-run this provider&rsquo;s check in Settings to choose a model here.</span>}
       {options.map((option) => (
         <label className="start-picker" key={option.id} title={option.description}>
           <span className="start-picker-label">{option.name}</span>

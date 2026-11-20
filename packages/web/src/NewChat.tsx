@@ -80,7 +80,7 @@ export function NewChat({
           No provider has passed its setup check yet, so there is nothing to chat with.
         </p>
         <button className="primary" onClick={onNeedsSetup}>
-          Go to Setup
+          Go to Settings
         </button>
       </div>
     );

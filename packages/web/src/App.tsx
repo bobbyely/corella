@@ -6,7 +6,7 @@ import { NewChat, type AdoptTarget } from "./NewChat.js";
 import { Rooms, RoomView } from "./Rooms.js";
 import { ScheduleLog, Schedules } from "./Schedules.js";
 import { Setup } from "./Setup.js";
-import { Sidebar } from "./Sidebar.js";
+import { Sidebar, type SidebarApi } from "./Sidebar.js";
 import { useShortcuts } from "./useShortcuts.js";
 
 type View =
@@ -46,7 +46,7 @@ export function App() {
 
   // The sidebar owns the conversation list, so it exposes the two things
   // shortcuts need rather than the list being lifted up here.
-  const sidebarApi = useRef<{ focusSearch: () => void; step: (delta: number) => void }>(null);
+  const sidebarApi = useRef<SidebarApi>(null);
 
   const shortcuts = useMemo(
     () => ({
@@ -93,7 +93,7 @@ export function App() {
           <div className="empty">
             <h1>Corella</h1>
             <p className="muted">Start a new chat, or pick one from the left.</p>
-            <button className="primary" onClick={() => setView({ name: "new" })}>
+            <button className="hw hot" onClick={() => setView({ name: "new" })}>
               New chat
             </button>
           </div>
@@ -144,6 +144,7 @@ export function App() {
             onStarted={refreshList}
             onOpenSetup={() => setView({ name: "setup" })}
             onBack={chatBack}
+            onPlay={() => sidebarApi.current?.play()}
           />
         )}
         </ErrorBoundary>
