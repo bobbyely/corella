@@ -35,6 +35,8 @@ export interface SocketView {
    * after, so a slow start or resume the reader has left never takes over.
    */
   generation: number;
+  /** Shows nothing: the reader has asked for a chat that is not up yet. */
+  unwatch(): void;
   /** Set when the socket closes, so a start that finishes later is not shown on it. */
   closed: boolean;
 }
@@ -98,11 +100,12 @@ function handleConnection(ws: WebSocket, sessions: SessionManager): void {
     watching.push(live.subscribe((events) => send({ type: "events", sessionId: live.id, events })));
     watching.push(live.onStateChange(() => send({ type: "session_state", session: live.summary() })));
   };
-  unsubscribers.push(() => {
+  const unwatch = () => {
     for (const off of watching) off();
     watching = [];
-  });
-  const view: SocketView = { watch, generation: 0, closed: false };
+  };
+  unsubscribers.push(unwatch);
+  const view: SocketView = { watch, unwatch, generation: 0, closed: false };
 
   ws.on("message", (raw) => {
     void handleFrame(String(raw), sessions, send, view, prefs);
@@ -166,12 +169,14 @@ async function dispatch(
 
   switch (msg.type) {
     case "open": {
+      // The chat on screen is let go now, not when this start succeeds: a
+      // start that fails must not leave a draft it replaced running.
+      view.unwatch();
       const provider = loadConfig().providers.find((p) => p.id === msg.providerId);
-      if (!provider) {
-        throw kcError("PROVIDER_UNKNOWN", `No provider configured with id '${msg.providerId}'.`);
-      }
       let session: Session;
       try {
+        // Inside the try, so a missing provider fails like any start: with its request id.
+        if (!provider) throw kcError("PROVIDER_UNKNOWN", `No provider configured with id '${msg.providerId}'.`);
         session = await sessions.open(provider, msg.cwd, sessions.withNewChatDefaults(msg.start), msg.draft ?? false);
       } catch (err) {
         // A start the reader has left is not theirs to be told about: the
@@ -183,7 +188,7 @@ async function dispatch(
         return;
       }
       // Only once the agent is up: a start that failed is not one to repeat.
-      sessions.rememberStart(provider.id, msg.start ?? {});
+      sessions.rememberStart(msg.providerId, msg.start ?? {});
       if (!current()) {
         // Left mid-start, by a folder switch, another chat or a closed tab.
         sessions.closeIfDraft(session.id);
@@ -197,6 +202,7 @@ async function dispatch(
     }
 
     case "adopt": {
+      view.unwatch();
       const provider = loadConfig().providers.find((p) => p.id === msg.providerId);
       if (!provider) {
         throw kcError("PROVIDER_UNKNOWN", `No provider configured with id '${msg.providerId}'.`);

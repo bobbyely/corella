@@ -206,7 +206,7 @@ export function Chat({
         const opening = draftOpening.current;
         return { pendingOn: openSession(draftProvider, draftCwd, opening ? { opening } : {}, true) };
       }
-      prompt(text, images, files);
+      if (!prompt(text, images, files)) return false;
       if (draft && liveId) onBegan?.(liveId);
       return true;
     },

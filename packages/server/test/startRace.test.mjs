@@ -124,6 +124,25 @@ describe("a new chat whose agent is still starting", () => {
     await t.close();
   });
 
+  it("fails a start for an agent no longer configured like any other, with its request id", async () => {
+    const t = await tab();
+    t.send({ type: "open", requestId: "r-gone", providerId: "removed-since", cwd: folder("gone"), draft: true });
+    assert.ok(await until(() => t.got.some((m) => m.type === "error")));
+    assert.equal(t.got.find((m) => m.type === "error").requestId, "r-gone");
+    await t.close();
+  });
+
+  it("lets go of a ready draft as soon as another start begins, even one that then fails", async () => {
+    const t = await tab();
+    t.send({ type: "open", requestId: "r-ready", providerId: "fast", cwd: folder("ready"), draft: true });
+    assert.ok(await until(() => t.got.some((m) => m.type === "session_opened")));
+    const ready = t.got.find((m) => m.type === "session_opened").session.id;
+    t.send({ type: "open", requestId: "r-broken", providerId: "broken", cwd: folder("broken"), draft: true });
+    assert.ok(await until(() => t.got.some((m) => m.type === "error")));
+    assert.equal(sessions.getLive(ready), null, "the draft left behind is closed");
+    await t.close();
+  });
+
   it("never sends anything to the agent by itself", async () => {
     const t = await tab();
     t.send({ type: "open", requestId: "r-q", providerId: "slow", cwd: folder("q"), draft: true });

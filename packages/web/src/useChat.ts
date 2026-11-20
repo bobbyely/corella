@@ -48,11 +48,18 @@ export function useChat() {
     startId.current = id;
     setStartState(id);
   }, []);
-  /** Its `open`, until answered: asked again, as a new start, if the socket drops meanwhile. */
+  /**
+   * Its `open`, until answered, and for a new chat until something is said
+   * in it: the server closes an unsaid draft when the socket drops, so that
+   * start is asked for again, as a new one.
+   */
   const openFrame = useRef<Extract<ClientMessage, { type: "open" }> | null>(null);
 
-  const send = useCallback((msg: ClientMessage) => {
-    if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(msg));
+  /** False when the socket is not open and the frame went nowhere. */
+  const send = useCallback((msg: ClientMessage): boolean => {
+    if (ws.current?.readyState !== WebSocket.OPEN) return false;
+    ws.current.send(JSON.stringify(msg));
+    return true;
   }, []);
 
   const connect = useCallback(() => {
@@ -90,7 +97,7 @@ export function useChat() {
       switch (msg.type) {
         case "session_opened":
           if (msg.requestId !== (startId.current ?? undefined)) break;
-          openFrame.current = null;
+          if (!openFrame.current?.draft) openFrame.current = null;
           sessionId.current = msg.session.id;
           lastSeq.current = 0;
           setSession(msg.session);
@@ -144,8 +151,15 @@ export function useChat() {
 
     socket.onclose = () => {
       setConnected(false);
-      // The server let the start go with the socket; a waiting message waits on nothing now.
-      if (openFrame.current) setStart(null);
+      // The server let the start, or the unsaid draft, go with the socket: the
+      // page drops it too, so nothing is sent to it and a waiting message
+      // waits on nothing now. Reconnecting starts it again.
+      if (openFrame.current) {
+        sessionId.current = null;
+        setSession(null);
+        setEvents([]);
+        setStart(null);
+      }
       retry.current = window.setTimeout(connect, 1_000);
     };
   }, [send, setStart]);
@@ -332,10 +346,11 @@ export function useChat() {
     [send],
   );
 
+  /** False when it could not be sent, so the box keeps it. */
   const prompt = useCallback(
-    (text: string, images: Array<{ mime: string; data: string }> = [], files: string[] = [], quiet = false) => {
-      if (!sessionId.current) return;
-      send({
+    (text: string, images: Array<{ mime: string; data: string }> = [], files: string[] = [], quiet = false): boolean => {
+      if (!sessionId.current) return false;
+      const sent = send({
         type: "prompt",
         sessionId: sessionId.current,
         text,
@@ -343,6 +358,9 @@ export function useChat() {
         ...(files.length > 0 ? { files } : {}),
         ...(quiet ? { quiet } : {}),
       });
+      // Said, so the draft is a saved chat now: a dropped socket no longer ends it.
+      if (sent && !quiet) openFrame.current = null;
+      return sent;
     },
     [send],
   );
@@ -350,13 +368,14 @@ export function useChat() {
   const interrupt = useCallback(
     (text: string, images: Array<{ mime: string; data: string }> = [], files: string[] = []) => {
       if (!sessionId.current) return;
-      send({
+      const sent = send({
         type: "interrupt",
         sessionId: sessionId.current,
         text,
         ...(images.length > 0 ? { images } : {}),
         ...(files.length > 0 ? { files } : {}),
       });
+      if (sent) openFrame.current = null;
     },
     [send],
   );

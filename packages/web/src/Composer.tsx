@@ -124,6 +124,9 @@ export function Composer({
     const result = send(text, images.map(({ mime, data }) => ({ mime, data })), mentionedIn(text, chosen));
     if (result === false) return;
     if (typeof result === "object") return setPendingOn(result.pendingOn);
+    // Now, not in the effect that saves it: a first message turns the new
+    // chat into a conversation in this same render, and that effect then skips.
+    if (choice) keepNewChat("");
     setDraft("");
     setImages([]);
     setChosen(new Set());

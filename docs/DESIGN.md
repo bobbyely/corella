@@ -208,9 +208,13 @@ Each `open` carries a `requestId`. A socket has a view generation
 and the socket's `closed`, before it watches or answers. So a slow start or
 resume the reader has left is never shown: a superseded draft is closed when
 it comes up, and a late resume cannot take the socket from the chat on screen.
-A start's failure carries its `requestId`, and the page acts only on the start
-it is waiting for; a failure ends that start, and the next Enter begins a new
-one.
+A start's failure carries its `requestId` (a provider no longer configured
+included), and the page acts only on the start it is waiting for; a failure
+ends that start, and the next Enter begins a new one. An `open` or `adopt`
+lets go of the chat on screen at once, so a draft it replaces is closed even
+if the new start fails. A draft nothing was said in dies with its socket, so
+the page treats it as gone too and starts a fresh one on reconnect; and a send
+on a closed socket reports failure, so the box keeps its words.
 
 **The server never holds an unsent message.** Enter before the agent is up
 leaves the text in the box, read-only, under "Sends when <agent> is ready"

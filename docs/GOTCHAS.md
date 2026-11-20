@@ -177,7 +177,11 @@ All of these were real races, found the hard way.
   kept a copy in the page. A lost acknowledgement then sent it twice, a
   reconnect started a second draft, and a failed start after a reload had
   nowhere to give it back. Two copies of an unsent message is the bug; the
-  page keeps the only one, in the box, until the agent is up.
+  page keeps the only one, in the box, until the agent is up. Two follow-ons:
+  an unsaid draft dies with its socket, so the page must drop it on close
+  rather than resubscribe to a chat the server already closed; and a send on
+  a closed socket used to vanish while the box cleared, so `send` and
+  `prompt` now say whether the frame went.
 - **Two checks of one provider can be in flight.** Changing a provider while
   its automatic check runs starts another; the slower one used to win and
   either one ending cleared `checking`. `AutoCheck` numbers each provider's
