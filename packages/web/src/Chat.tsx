@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { collectRoots, handoffText, isProviderFault, latestUsage } from "@kirochrome/shared";
 import type {
   ElicitationAction,
@@ -565,9 +565,14 @@ function PermissionCard({
   onAnswer: (requestId: string, optionId: string | null) => void;
 }) {
   const answered = row.answeredWith !== null;
+  const titleId = useId();
   return (
-    <div className={`permission ${answered ? "answered" : ""}`}>
-      <div className="permission-title">{row.title}</div>
+    <div className={`permission ${answered ? "answered" : ""}`} role="group" aria-labelledby={titleId}>
+      {/* An alert while open, so a screen reader hears what the agent is
+          blocked on, not only the spinner's "Waiting for you". */}
+      <div className="permission-title" id={titleId} role={answered ? undefined : "alert"}>
+        {row.title}
+      </div>
       {answered ? (
         <span className="muted">
           {row.answeredWith === "cancelled" ? "Cancelled" : `Answered: ${row.answeredWith}`}

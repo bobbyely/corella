@@ -10,14 +10,17 @@
    =========================================================================== */
 
 :root {
-  /* --- type scale --- */
-  --fs-2xs: 10px;
-  --fs-xs: 11px;
-  --fs-sm: 12px;
-  --fs-md: 13px;
-  --fs-base: 14px;
-  --fs-lg: 17px;
-  --fs-xl: 22px;
+  /* --- type scale ---
+     In rem so a reader who raises the browser's font size gets bigger text.
+     11px is the floor: 2xs and xs match on purpose, so labels written as 2xs
+     cannot drop below it. */
+  --fs-2xs: 0.6875rem; /* 11px */
+  --fs-xs: 0.6875rem;  /* 11px */
+  --fs-sm: 0.75rem;    /* 12px */
+  --fs-md: 0.8125rem;  /* 13px */
+  --fs-base: 0.875rem; /* 14px */
+  --fs-lg: 1.0625rem;  /* 17px */
+  --fs-xl: 1.375rem;   /* 22px */
 
   /* --- spacing scale --- */
   --sp-1: 4px;
@@ -35,72 +38,44 @@
   --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
+  /* --- colour: light-dark(light, dark), so each theme is written once ---
+     `color-scheme` picks the side: the system's choice by default, or the
+     explicit choice from data-theme below. Light is clean and technical, not a
+     washed-out copy of the dark one. */
   color-scheme: light dark;
+  --bg: light-dark(#f4f6f6, #050708);
+  --surface: light-dark(#ffffff, #0b1012);
+  --raised: light-dark(#eceff0, #121a1c);
+  --border: light-dark(#d5dbdc, #1c2629);
+  --border-strong: light-dark(#b9c2c4, #2b3a3e);
+  --text: light-dark(#10181a, #dce7e8);
+  --muted: light-dark(#5c6b6e, #7c8f93);
+  --accent: light-dark(#00807a, #2ef2da);
+  --accent-ink: light-dark(#ffffff, #04100f);
+  --accent-dim: light-dark(rgb(0 128 122 / 0.12), rgb(46 242 218 / 0.14));
+  --ok: light-dark(#1c7a4f, #35e08f);
+  --ok-bg: light-dark(#e2f2ea, rgb(53 224 143 / 0.12));
+  --fail: light-dark(#b3341f, #ff5f7e);
+  --fail-bg: light-dark(#fcebe8, rgb(255 95 126 / 0.12));
+  --warn: light-dark(#8a5a06, #ffb347);
+  --warn-bg: light-dark(#fbf1de, rgb(255 179 71 / 0.12));
+  /* Glow is dark-only; in light the shadow is transparent, so drawn as nothing. */
+  --glow: 0 0 12px light-dark(transparent, rgb(46 242 218 / 0.35));
 
-  /* --- light: clean and technical, not a washed-out copy of the dark one --- */
-  --bg: #f4f6f6;
-  --surface: #ffffff;
-  --raised: #eceff0;
-  --border: #d5dbdc;
-  --border-strong: #b9c2c4;
-  --text: #10181a;
-  --muted: #5c6b6e;
-  --accent: #00807a;
-  --accent-ink: #ffffff;
-  --accent-dim: rgb(0 128 122 / 0.12);
-  --ok: #1c7a4f;
-  --ok-bg: #e2f2ea;
-  --fail: #b3341f;
-  --fail-bg: #fcebe8;
-  --warn: #8a5a06;
-  --warn-bg: #fbf1de;
-  --glow: none;
+  /* --- syntax: Tokyo Night in dark, a matching set for light --- */
+  --syn-comment: light-dark(#6b7280, #6b7394);
+  --syn-keyword: light-dark(#7c3aed, #bb9af7);
+  --syn-string: light-dark(#276749, #9ece6a);
+  --syn-number: light-dark(#9a4a02, #ff9e64);
+  --syn-title: light-dark(#1d4ed8, #7aa2f7);
+  --syn-type: light-dark(#0e7490, #2ac3de);
+  --syn-deletion: light-dark(#b3341f, #f7768e);
+  --syn-variable: light-dark(#334155, #c0caf5);
 }
 
-/* System preference, unless an explicit choice overrides it. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #05070800;
-    --bg: #050708;
-    --surface: #0b1012;
-    --raised: #121a1c;
-    --border: #1c2629;
-    --border-strong: #2b3a3e;
-    --text: #dce7e8;
-    --muted: #7c8f93;
-    --accent: #2ef2da;
-    --accent-ink: #04100f;
-    --accent-dim: rgb(46 242 218 / 0.14);
-    --ok: #35e08f;
-    --ok-bg: rgb(53 224 143 / 0.12);
-    --fail: #ff5f7e;
-    --fail-bg: rgb(255 95 126 / 0.12);
-    --warn: #ffb347;
-    --warn-bg: rgb(255 179 71 / 0.12);
-    --glow: 0 0 12px rgb(46 242 218 / 0.35);
-  }
-}
-
-/* An explicit dark choice wins on a light system. */
-:root[data-theme="dark"] {
-  --bg: #050708;
-  --surface: #0b1012;
-  --raised: #121a1c;
-  --border: #1c2629;
-  --border-strong: #2b3a3e;
-  --text: #dce7e8;
-  --muted: #7c8f93;
-  --accent: #2ef2da;
-  --accent-ink: #04100f;
-  --accent-dim: rgb(46 242 218 / 0.14);
-  --ok: #35e08f;
-  --ok-bg: rgb(53 224 143 / 0.12);
-  --fail: #ff5f7e;
-  --fail-bg: rgb(255 95 126 / 0.12);
-  --warn: #ffb347;
-  --warn-bg: rgb(255 179 71 / 0.12);
-  --glow: 0 0 12px rgb(46 242 218 / 0.35);
-}
+/* An explicit choice beats the system preference. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 
@@ -154,6 +129,7 @@ button.primary {
 button.primary:hover:not(:disabled) { box-shadow: var(--glow); color: var(--accent-ink); }
 
 input, textarea, select { font-family: var(--mono); }
+::placeholder { color: var(--muted); opacity: 1; }
 
 .muted { color: var(--muted); }
 
@@ -243,7 +219,7 @@ input, textarea, select { font-family: var(--mono); }
   border: none;
   color: var(--text);
 }
-.sidebar-item-main:hover { color: var(--text); border: none; }
+.sidebar-item-main:hover:not(:disabled) { color: var(--text); border: none; }
 .sidebar-item-title {
   display: flex;
   align-items: center;
@@ -256,8 +232,11 @@ input, textarea, select { font-family: var(--mono); }
 }
 .sidebar-item-sub { font-size: var(--fs-2xs); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
 
-.sidebar-action { flex-shrink: 0; padding: 0 var(--sp-1); border: none; font-size: var(--fs-sm); opacity: 0; }
-.sidebar-item:hover .sidebar-action { opacity: 1; }
+.sidebar-action { flex-shrink: 0; min-width: 24px; min-height: 24px; padding: 0 var(--sp-1); border: none; font-size: var(--fs-sm); opacity: 0; }
+/* Shown on hover, but also to a keyboard landing on them and on touch, which
+   has no hover: an invisible control that takes focus is a trap. */
+.sidebar-item:hover .sidebar-action, .sidebar-item:focus-within .sidebar-action { opacity: 1; }
+@media (hover: none) { .sidebar-action { opacity: 1; } }
 .sidebar-action:hover { border: none; }
 
 .sidebar-rename-input {
@@ -796,37 +775,14 @@ kbd {
 /* ---------- syntax highlighting ----------
    Based on Tokyo Night, which is a proven code palette rather than an invented
    one — legibility of code is the reason this app exists. */
-.hljs-comment, .hljs-quote { color: #6b7394; font-style: italic; }
-.hljs-keyword, .hljs-selector-tag, .hljs-literal { color: #bb9af7; }
-.hljs-string, .hljs-addition { color: #9ece6a; }
-.hljs-number, .hljs-symbol, .hljs-bullet, .hljs-attr { color: #ff9e64; }
-.hljs-title, .hljs-section, .hljs-name, .hljs-function { color: #7aa2f7; }
-.hljs-type, .hljs-built_in, .hljs-class .hljs-title { color: #2ac3de; }
-.hljs-deletion { color: #f7768e; }
-.hljs-variable, .hljs-template-variable { color: #c0caf5; }
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    .hljs-comment, .hljs-quote { color: #6b7280; }
-    .hljs-keyword, .hljs-selector-tag, .hljs-literal { color: #7c3aed; }
-    .hljs-string, .hljs-addition { color: #276749; }
-    .hljs-number, .hljs-symbol, .hljs-bullet, .hljs-attr { color: #9a4a02; }
-    .hljs-title, .hljs-section, .hljs-name, .hljs-function { color: #1d4ed8; }
-    .hljs-type, .hljs-built_in, .hljs-class .hljs-title { color: #0e7490; }
-    .hljs-deletion { color: #b3341f; }
-    .hljs-variable, .hljs-template-variable { color: #334155; }
-  }
-}
-:root[data-theme="light"] {
-  .hljs-comment, .hljs-quote { color: #6b7280; }
-  .hljs-keyword, .hljs-selector-tag, .hljs-literal { color: #7c3aed; }
-  .hljs-string, .hljs-addition { color: #276749; }
-  .hljs-number, .hljs-symbol, .hljs-bullet, .hljs-attr { color: #9a4a02; }
-  .hljs-title, .hljs-section, .hljs-name, .hljs-function { color: #1d4ed8; }
-  .hljs-type, .hljs-built_in, .hljs-class .hljs-title { color: #0e7490; }
-  .hljs-deletion { color: #b3341f; }
-  .hljs-variable, .hljs-template-variable { color: #334155; }
-}
+.hljs-comment, .hljs-quote { color: var(--syn-comment); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal { color: var(--syn-keyword); }
+.hljs-string, .hljs-addition { color: var(--syn-string); }
+.hljs-number, .hljs-symbol, .hljs-bullet, .hljs-attr { color: var(--syn-number); }
+.hljs-title, .hljs-section, .hljs-name, .hljs-function { color: var(--syn-title); }
+.hljs-type, .hljs-built_in, .hljs-class .hljs-title { color: var(--syn-type); }
+.hljs-deletion { color: var(--syn-deletion); }
+.hljs-variable, .hljs-template-variable { color: var(--syn-variable); }
 
 @media (prefers-reduced-motion: reduce) {
   .status-working, .work-mark.active, .status-input, .kspin rect { animation: none !important; }

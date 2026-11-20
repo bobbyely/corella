@@ -65,6 +65,7 @@ export function Sidebar({
   // screen, and it already knows which conversation is waiting on the user.
   // They are positioned fixed, so where they render makes no visual difference.
   const [playing, setPlaying] = useState(false);
+  const awaitingInput = sessions?.some((s) => s.awaitingInput) ?? false;
 
   // Drag the right edge to resize. The width is a per-browser convenience,
   // like the theme, and the shell reads it from a CSS variable.
@@ -308,14 +309,16 @@ export function Sidebar({
         </button>
         <span className={`dot ${connected ? "dot-ok" : "dot-off"}`} title={connected ? "Connected" : "Disconnected"} />
       </div>
-      {!playing && (
+      {/* Hidden while an agent waits on an answer: the opener floats over the
+          chat and can cover a permission prompt's buttons. */}
+      {!playing && !awaitingInput && (
         <button className="games-open" onClick={() => setPlaying(true)} title="Something to do while an agent works">
           Play
         </button>
       )}
       <GamesPanel
         open={playing}
-        awaitingInput={sessions?.some((s) => s.awaitingInput) ?? false}
+        awaitingInput={awaitingInput}
         onClose={() => setPlaying(false)}
       />
     </aside>
