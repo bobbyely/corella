@@ -79,7 +79,7 @@ export function Composer({
   /** False when the message could not be sent, so the box keeps it. */
   onPrompt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => PromptResult;
   /** Like `onPrompt`, but cancels the running turn first. */
-  onInterrupt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => void;
+  onInterrupt: (text: string, images: Array<{ mime: string; data: string }>, files: string[]) => boolean;
   onCancel: () => void;
   onSetAutoApprove: (enabled: boolean) => void;
   onSetConfigOption: (configId: string, value: string | boolean) => void;

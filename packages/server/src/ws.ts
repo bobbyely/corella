@@ -172,10 +172,11 @@ async function dispatch(
       // The chat on screen is let go now, not when this start succeeds: a
       // start that fails must not leave a draft it replaced running.
       view.unwatch();
-      const provider = loadConfig().providers.find((p) => p.id === msg.providerId);
       let session: Session;
       try {
-        // Inside the try, so a missing provider fails like any start: with its request id.
+        // Inside the try, so a broken config or a missing provider fails like
+        // any start: with its request id, which ends it in the page.
+        const provider = loadConfig().providers.find((p) => p.id === msg.providerId);
         if (!provider) throw kcError("PROVIDER_UNKNOWN", `No provider configured with id '${msg.providerId}'.`);
         session = await sessions.open(provider, msg.cwd, sessions.withNewChatDefaults(msg.start), msg.draft ?? false);
       } catch (err) {

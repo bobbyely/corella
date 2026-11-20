@@ -367,7 +367,7 @@ export function useChat() {
 
   const interrupt = useCallback(
     (text: string, images: Array<{ mime: string; data: string }> = [], files: string[] = []) => {
-      if (!sessionId.current) return;
+      if (!sessionId.current) return false;
       const sent = send({
         type: "interrupt",
         sessionId: sessionId.current,
@@ -376,6 +376,7 @@ export function useChat() {
         ...(files.length > 0 ? { files } : {}),
       });
       if (sent) openFrame.current = null;
+      return sent;
     },
     [send],
   );

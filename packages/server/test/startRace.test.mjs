@@ -132,6 +132,20 @@ describe("a new chat whose agent is still starting", () => {
     await t.close();
   });
 
+  it("fails a start on a broken config.json with its request id too", async () => {
+    const config = join(dir, "config.json");
+    writeFileSync(config, "{ not json");
+    try {
+      const t = await tab();
+      t.send({ type: "open", requestId: "r-config", providerId: "fast", cwd: folder("config"), draft: true });
+      assert.ok(await until(() => t.got.some((m) => m.type === "error")));
+      assert.equal(t.got.find((m) => m.type === "error").requestId, "r-config");
+      await t.close();
+    } finally {
+      writeFileSync(config, JSON.stringify({ providers }));
+    }
+  });
+
   it("lets go of a ready draft as soon as another start begins, even one that then fails", async () => {
     const t = await tab();
     t.send({ type: "open", requestId: "r-ready", providerId: "fast", cwd: folder("ready"), draft: true });
