@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync } from "node:fs";
+import { chmodSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import type {
   KcError,
@@ -13,7 +13,7 @@ import type {
   SessionRecord,
   StartOptions,
 } from "@kirochrome/shared";
-import { dataDir, dbPath } from "./paths.js";
+import { dbPath, ensureDataDir } from "./paths.js";
 
 /**
  * SQLite is built into Node 22 (`node:sqlite`) — no native module, no build
@@ -26,7 +26,7 @@ export class Store {
   private readonly db: DatabaseSync;
 
   constructor(path = dbPath()) {
-    mkdirSync(dataDir(), { recursive: true });
+    ensureDataDir();
     this.db = new DatabaseSync(path);
     this.db.exec(`
       PRAGMA journal_mode = WAL;
@@ -170,11 +170,14 @@ export class Store {
 
     this.migrate();
     this.backfillSearch();
-    // The database holds work conversations and source code. Keep it private.
-    try {
-      chmodSync(path, 0o600);
-    } catch {
-      // Best effort; some filesystems (and Windows) will not have it.
+    // The database holds work conversations and source code. Keep it private,
+    // and its WAL files too: they hold the most recent writes in plain text.
+    for (const file of [path, `${path}-wal`, `${path}-shm`]) {
+      try {
+        chmodSync(file, 0o600);
+      } catch {
+        // Best effort; some filesystems (and Windows) will not have it.
+      }
     }
   }
 

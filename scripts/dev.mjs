@@ -83,5 +83,6 @@ run("server", "node", [
 ]);
 run("web", "npx", ["vite"], { cwd: join(root, "packages", "web") });
 
-console.log("\n  UI with hot reload:  http://127.0.0.1:5173");
+console.log("\n  Log in with the ?token= link the server prints; it lands on the UI below.");
+console.log("  UI with hot reload:  http://127.0.0.1:5173");
 console.log("  API and WebSocket:   http://127.0.0.1:4711  (proxied by Vite)\n");

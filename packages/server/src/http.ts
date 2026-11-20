@@ -1,4 +1,4 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { collectRoots, isImageMime, kcError, type KcError } from "@kirochrome/shared";
@@ -11,6 +11,7 @@ import type {
   SchedulesResponse,
 } from "@kirochrome/shared";
 import { listAgentSessions } from "./agentSessions.js";
+import { authorized, loadToken, loginCookie, sameToken } from "./auth.js";
 import { checkProvider } from "./check.js";
 import { exportFilename, toMarkdown } from "./export.js";
 import { listDirectory, rawFile, readText, validateRoot } from "./files.js";
@@ -83,7 +84,8 @@ const MIME: Record<string, string> = {
   ".json": "application/json; charset=utf-8",
 };
 
-export function startServer(port: number, webRoot: string | null): void {
+export function startServer(port: number, webRoot: string | null): Server {
+  const token = loadToken();
   const store = new Store();
   const sessions = new SessionManager(store);
   const scheduler = new Scheduler(store, sessions, () => loadConfig().providers);
@@ -97,6 +99,27 @@ export function startServer(port: number, webRoot: string | null): void {
     }
 
     const url = new URL(req.url ?? "/", `http://${HOST}:${port}`);
+
+    // The login link: trade the token for a cookie, then drop it from the
+    // address bar so it does not sit in history or get copied with the URL.
+    const given = url.searchParams.get("token");
+    if (given !== null && req.method === "GET" && sameToken(given, token)) {
+      url.searchParams.delete("token");
+      res.writeHead(302, {
+        "set-cookie": loginCookie(token, port),
+        location: `${landingOrigin(req)}${url.pathname}${url.search}`,
+      });
+      res.end();
+      return;
+    }
+    if (!authorized(req, token, port)) {
+      const error = kcError("AUTH_REQUIRED", "This browser is not logged in to KiroChrome.");
+      if (url.pathname.startsWith("/api/")) return sendError(res, 401, error);
+      res.writeHead(401, { "content-type": "text/plain; charset=utf-8" });
+      res.end(`${error.message}\n\n${error.remediation}\n`);
+      return;
+    }
+
     try {
       if (url.pathname.startsWith("/api/schedules")) return await handleSchedules(req, res, url, scheduler);
       if (url.pathname.startsWith("/api/rooms")) return await handleRooms(req, res, url, rooms);
@@ -115,10 +138,12 @@ export function startServer(port: number, webRoot: string | null): void {
     }
   });
 
-  attachWebSocket(server, sessions, (req) => originAllowed(req, port));
+  attachWebSocket(server, sessions, (req) => originAllowed(req, port) && authorized(req, token, port));
 
   server.listen(port, HOST, () => {
-    console.log(`KiroChrome on http://${HOST}:${port}`);
+    // The link is the login, so it is printed whole. In development it lands
+    // on Vite's page, which the cookie also covers: cookies ignore the port.
+    console.log(`KiroChrome on http://${HOST}:${port}/?token=${token}`);
   });
 
   // Agents are child processes; leaving them behind is the orphan bug we
@@ -131,6 +156,14 @@ export function startServer(port: number, webRoot: string | null): void {
   };
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
+  return server;
+}
+
+/** Where the login link lands: this server, or in development Vite's page on the same host. */
+function landingOrigin(req: IncomingMessage): string {
+  if (process.env.KIROCHROME_DEV !== "1") return "";
+  const hostname = (req.headers.host ?? HOST).replace(/:\d+$/, "");
+  return `http://${hostname}:${VITE_PORT}`;
 }
 
 async function handleApi(

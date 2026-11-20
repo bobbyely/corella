@@ -27,6 +27,7 @@ export const KC_ERROR_CODES = [
   "CONFIG_INVALID",
   "MESSAGE_INVALID",
   "ORIGIN_REJECTED",
+  "AUTH_REQUIRED",
   "INTERNAL",
 ] as const;
 
@@ -98,6 +99,8 @@ export const REMEDIATION: Record<KcErrorCode, string> = {
     "The browser sent a message this server does not understand. Reload the page; if it keeps happening, the page and the server are different versions.",
   ORIGIN_REJECTED:
     "This page is not on an origin the server trusts. Open the app at the URL the server printed. In development, use the URL `npm run dev` printed and make sure no other dev server is holding port 5173 — Vite otherwise moves to another port the server rejects.",
+  AUTH_REQUIRED:
+    "Open KiroChrome with the link it printed in the terminal when it started (it ends in `?token=…`). That logs this browser in. Scripts can send the token as `Authorization: Bearer <token>`; it is in the file `token` in the data folder.",
   INTERNAL: "An unexpected internal error. Please report this with the details below.",
 };
 

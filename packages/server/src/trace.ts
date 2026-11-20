@@ -1,6 +1,6 @@
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync } from "node:fs";
 import { join } from "node:path";
-import { dataDir } from "./paths.js";
+import { dataDir, ensureDataDir } from "./paths.js";
 
 /**
  * Optional JSON-RPC frame trace, enabled with KIROCHROME_TRACE=1.
@@ -13,7 +13,7 @@ const enabled = process.env.KIROCHROME_TRACE === "1";
 let tracePath: string | null = null;
 
 if (enabled) {
-  mkdirSync(dataDir(), { recursive: true });
+  ensureDataDir();
   tracePath = join(dataDir(), `trace-${Date.now()}.jsonl`);
   console.log(`[trace] writing JSON-RPC frames to ${tracePath}`);
 }
@@ -23,7 +23,7 @@ export const traceEnabled = enabled;
 export function trace(direction: "in" | "out", providerId: string, frame: unknown): void {
   if (!tracePath) return;
   try {
-    appendFileSync(tracePath, `${JSON.stringify({ ts: Date.now(), direction, providerId, frame })}\n`);
+    appendFileSync(tracePath, `${JSON.stringify({ ts: Date.now(), direction, providerId, frame })}\n`, { mode: 0o600 });
   } catch {
     // Tracing must never take the server down.
   }

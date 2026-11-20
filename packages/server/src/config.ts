@@ -1,8 +1,8 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { causeOf, kcError, type ProviderConfig, type Validated } from "@kirochrome/shared";
-import { configPath, dataDir } from "./paths.js";
+import { configPath, ensureDataDir } from "./paths.js";
 
 /**
  * Seed providers. These are starting points, not a hardcoded catalogue — the
@@ -153,7 +153,7 @@ function writeConfig(config: AppConfig): void {
 }
 
 export function loadConfig(): AppConfig {
-  mkdirSync(dataDir(), { recursive: true });
+  ensureDataDir();
   const path = configPath();
 
   let raw: string;

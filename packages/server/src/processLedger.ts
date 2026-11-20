@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { dataDir } from "./paths.js";
+import { dataDir, ensureDataDir } from "./paths.js";
 
 /**
  * A record of every process we spawn, so a server that dies without cleaning up
@@ -27,12 +27,12 @@ const REAPING_SUPPORTED = process.platform !== "win32";
 export function recordProcess(pid: number, command: string): void {
   if (!REAPING_SUPPORTED) return;
   try {
-    mkdirSync(dataDir(), { recursive: true });
+    ensureDataDir();
     // The start time is the identity check. Command text is recorded only for
     // the log: a shell may exec-replace itself (`sh -c "sleep 30"` becomes
     // `sleep 30` under bash but not dash), so it is not reliable for matching.
     const started = startTime(pid) ?? "";
-    appendFileSync(ledgerPath(), `${pid}\t${started}\t${command.replace(/\s+/g, " ")}\n`);
+    appendFileSync(ledgerPath(), `${pid}\t${started}\t${command.replace(/\s+/g, " ")}\n`, { mode: 0o600 });
   } catch {
     // Leak protection is best-effort; never fail a spawn over bookkeeping.
   }
@@ -95,7 +95,7 @@ export function reapOrphans(): void {
 
   if (reaped > 0) console.log(`[processes] reaped ${reaped} orphan(s) from a previous run`);
   try {
-    writeFileSync(ledgerPath(), "");
+    writeFileSync(ledgerPath(), "", { mode: 0o600 });
   } catch {
     /* best effort */
   }

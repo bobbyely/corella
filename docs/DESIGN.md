@@ -394,7 +394,18 @@ and knowing when an agent misbehaves.
 - Bind `127.0.0.1` explicitly, never `0.0.0.0`.
 - **Check the WebSocket `Origin` header even on localhost** — any page in your
   browser can otherwise open a socket to a local server.
-- `chmod 0600` the database; it will hold work conversations and source code.
+- **A login token, because Origin only stops web pages.** Another program on
+  the machine sends no `Origin` and the right `Host`, and `PATCH
+  /api/providers/:id` plus its check runs any command. So every route and the
+  socket need the token, Jupyter-style: printed in the start-up link, traded for
+  an `HttpOnly`, `SameSite=Strict` cookie, or sent as a Bearer header. It is
+  kept in the data folder rather than made fresh each start, so a restart
+  (`node --watch` in dev, or a reboot) does not log the browser out. It does not
+  protect against a process running as the same user, which can read the file;
+  it protects against everything else on the machine.
+- The data folder is 0700 and its files 0600 (the database and its WAL files,
+  the token, the config, the process ledger, traces): they hold work
+  conversations, source code and provider `env` values.
 - Never log environment variables when logging spawns.
 - **Two file readers, two trust boundaries.** `fs.ts` answers the *agent's*
   `fs/read_text_file` and is deliberately unsandboxed: the agent is a local

@@ -11,10 +11,17 @@ Requires **Node 22.5+** (for the built-in `node:sqlite`). See `.nvmrc`.
 git clone https://github.com/bobbyely/kirochrome.git
 cd kirochrome
 npm install
-npm start                 # builds everything, serves http://127.0.0.1:4711
+npm start                 # builds everything, prints http://127.0.0.1:4711/?token=…
 ```
 
-Open <http://127.0.0.1:4711>, press **Check** on a provider, and once it passes,
+Open the printed link. The token in it is the login: the server trades it for a
+cookie (`HttpOnly`, `SameSite=Strict`) and redirects to the plain address, which
+then keeps working in that browser. Without it every page and API route answers
+401 `AUTH_REQUIRED`. The token is kept in the file `token` in the data directory
+(0600), so it survives restarts; delete the file for a new one. A script sends
+it as `Authorization: Bearer <token>`.
+
+Then press **Check** on a provider, and once it passes,
 **New chat**.
 
 If the agent keeps conversations of its own — Claude Code and Kiro both do — the
@@ -34,7 +41,9 @@ without losing your place, and the server rebuilds and restarts on change.
 Ctrl-C stops all of it.
 
 Vite proxies `/api` and `/ws` through to the server on :4711, so use the 5173
-URL — the 4711 one serves the last built bundle, not your edits.
+URL — the 4711 one serves the last built bundle, not your edits. To log in,
+open the `?token=` link the server prints: in dev mode it sets the cookie and
+lands on 5173 (cookies ignore the port, so the proxied calls carry it).
 
 A server restart detaches running agents. Conversations are persisted, so
 reopening one and pressing **Resume conversation** picks it back up.

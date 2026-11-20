@@ -51,7 +51,9 @@ Breaking one of these is a design regression, not a style nit.
    spawned in its own process group, killed as a group, released on session
    close. No exceptions — this is where hangs come from.
 7. **`127.0.0.1` only, and check the WebSocket `Origin`.** Any page in the
-   user's browser can open a socket to a local server otherwise.
+   user's browser can open a socket to a local server otherwise. And every
+   route and the socket need the login token: Origin stops web pages, not
+   other programs on the machine.
 8. **Wire types live in `packages/shared`** and are imported by both sides.
    Never redeclare a message shape in `server` or `web`.
 9. **Errors are typed, never strings.** Every failure is a `KcError` with a
@@ -116,6 +118,7 @@ Breaking one of these is a design regression, not a style nit.
 | `scheduler.ts` | Runs saved prompts on a timer, each as an ordinary session; records the runs that never became one |
 | `rooms.ts` | Agents talking in turns: a round-robin router over ordinary sessions, prompts built from the room's own log |
 | `timeout.ts` | `withTimeout` — invariant 10, in one place rather than three |
+| `auth.ts` | The login token: made once into the data folder, traded for a cookie, checked on every request and the socket |
 | `config.ts` | Provider registry in `config.json` |
 | `configOptions.ts` | Merges `configOptions` with the legacy `models`/`modes` |
 | `startOptions.ts` | `cleanStart` — a form's start options (config values, opening message) kept to their proper types |

@@ -12,8 +12,12 @@ click, and every conversation kept, searchable and resumable.
 
 ```bash
 git clone https://github.com/bobbyely/kirochrome.git && cd kirochrome
-npm install && npm start        # http://127.0.0.1:4711
+npm install && npm start        # prints a link: open it
 ```
+
+Open the link it prints, `http://127.0.0.1:4711/?token=…`. The token logs your
+browser in, so other programs on the machine cannot use KiroChrome's API; your
+browser remembers it, so next time plain `http://127.0.0.1:4711` is enough.
 
 Needs Node 22.5+. Press **Check** on an agent, then **New chat**. No agent
 installed yet? A built-in mock agent lets you try the chat anyway.

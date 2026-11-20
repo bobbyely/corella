@@ -210,6 +210,12 @@ All of these were real races, found the hard way.
 
 ## Security
 
+- **Loopback is not a login.** Any local process could call the API: no
+  `Origin` passes the Origin check, and the `Host` is right. `PATCH` a
+  provider's command, then `POST` its check, and it runs as the user. Every
+  route and the socket now need the token (`auth.ts`). A new route goes behind
+  the same gate by default; do not add one before it.
+
 - **Check `Host`, not only `Origin`.** Same-origin GETs send no `Origin`, so a
   page on a DNS-rebound name that resolves to `127.0.0.1` passed the check by
   omission and could read every GET route — transcripts, schedule prompts and

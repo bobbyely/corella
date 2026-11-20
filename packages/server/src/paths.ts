@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -18,3 +19,11 @@ export function dataDir(): string {
 
 export const dbPath = () => join(dataDir(), "kirochrome.db");
 export const configPath = () => join(dataDir(), "config.json");
+
+/**
+ * Creates the data folder private to the user (0700): it holds the database,
+ * the login token and the provider config. `mode` applies only on creation.
+ */
+export function ensureDataDir(): void {
+  mkdirSync(dataDir(), { recursive: true, mode: 0o700 });
+}
