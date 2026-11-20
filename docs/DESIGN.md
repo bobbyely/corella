@@ -250,6 +250,50 @@ raising a permission prompt in a room has nobody to answer it, and the view
 says so while it waits — and a participant that cannot answer stops the room
 with its name in the message rather than being skipped in silence.
 
+## Unread chats: read state beside the log
+
+A chat is unread when the agent finished a reply while no browser had it open.
+That is not something the event log can say, because "open" is a fact about
+sockets, not about the conversation. So it is a column on `sessions`
+(`unread`), set and cleared by `SessionManager`, the same way a schedule run's
+`unread` is kept on `schedule_runs`.
+
+- **Who is looking:** each socket that subscribes to a chat counts as a viewer
+  (`SessionManager.view`), released when it switches away or disconnects.
+  Counted, not a flag, because two tabs can hold the same chat.
+- **Set:** on every `turn_end` while the viewer count is zero, except a turn
+  closed only because the session was shutting down.
+- **Cleared:** when a socket subscribes, which is what opening a chat does.
+- **Sent:** with the session list, so a reload and every tab agree. A summary
+  sent for the chat being watched always says read.
+
+This bends invariant 2 the way `schedule_runs.unread` already did: the
+column is read state, not derived from `events`. A `sessions` table rebuilt
+from the log starts with every chat read, which is the safe way to be wrong.
+
+## The look: On Air
+
+The visual system is "On Air" (approved comps and reasoning in
+`design/README.md`). What the code relies on:
+
+- **A theme is one block of tokens** in `styles.css`. `theme.ts` names the
+  themes and resolves System to Cream or Studio, so `data-theme` on `<html>`
+  always names a real block; no theme is written twice. Every other colour in
+  the stylesheet is derived from those tokens. Adding a theme is a block there
+  and a line in `THEMES`.
+- **Fonts are self-hosted** (Archivo and Red Hat Mono, both OFL, licences in
+  `packages/web/src/fonts/`). Corella is local-first: the page fetches nothing
+  from anywhere but its own server.
+- **Raised keys only where a press matters:** New chat, Send, and the answers
+  to a permission prompt. Their socket and drop are 1 to 1.5px; thicker reads
+  as a cartoon.
+- **State is a word and a shape, never colour alone.** Red (`--cue`) means one
+  thing: you are needed, or something failed. Working has its own teal lamp.
+- **The running sheet's times are derived from the log** (`turnTimes` in
+  `timeline.ts`): each event's time since its turn began. A short run of tool
+  steps shows one line each with its time; more than `FOLD_AFTER` fold into one
+  line.
+
 ## Robustness: hanging processes
 
 Because we advertise `terminal: true`, the agent delegates command execution to
@@ -404,6 +448,12 @@ and knowing when an agent misbehaves.
   (`node --watch` in dev, or a reboot) does not log the browser out. It does not
   protect against a process running as the same user, which can read the file;
   it protects against everything else on the machine.
+- **Six files skip the login: the web app manifest and its icons**
+  (`PUBLIC_FILES` in `http.ts`). Browsers fetch a manifest without
+  credentials, so behind the login the page could not be installed as an app.
+  They hold only the name, colours and icon. Exact paths, GET only, and a
+  missing one is a 404 rather than the SPA fallback, so nothing else is served
+  without the token.
 - The data folder is 0700 and its files 0600 (the database and its WAL files,
   the token, the config, the process ledger, traces): they hold work
   conversations, source code and provider `env` values.

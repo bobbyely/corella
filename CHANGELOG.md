@@ -4,6 +4,37 @@ All notable changes to Corella are written down here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **The On Air look.** A calmer chat in the family of a radio running sheet:
+  each step carries its time from the start of the turn down a ruled left
+  margin, agent replies are plain text, your messages sit in a light box, and
+  each tool step is one line (a short run shows every step; a long one folds).
+  The header holds the title, the agent and folder, a readout with the turn's
+  clock and how full the agent's memory is, Changes, and a ··· menu with Files,
+  Export and the word games. The floating Play button is gone.
+- **Three themes:** Cream (light, the default), Studio (dark) and Glass, plus
+  System, which follows your computer. A choice made in 0.1.0 carries over:
+  Light becomes Cream, Dark becomes Studio.
+- **Chat states in the sidebar,** each a word and a shape: Cue (needs your
+  answer), On air (working), New (a reply you have not opened) and Off (no
+  agent attached). Chats are grouped under Today and Earlier, with their age.
+- **Unread chats.** A chat becomes New when the agent finishes a reply while
+  nobody has it open; opening it clears that. Kept by the server, so it
+  survives a reload and is the same in every tab.
+- **Install as an app.** A web app manifest and icons, so Chrome, Edge and
+  Brave offer **Install Corella**, and Safari offers **Add to Dock**.
+- **Archivo and Red Hat Mono,** served by Corella itself. No fonts or anything
+  else are fetched from outside.
+
+### Changed
+
+- **Setup is now Settings,** with the theme choice, the keyboard shortcuts and
+  the agents' checks.
+- **Nothing is smaller than 12px.** Body text is 14 to 15px.
+
 ## [0.1.0] - 2026-11-20
 
 The first release. Corella is a chat window in your browser for coding agents

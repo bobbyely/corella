@@ -91,6 +91,11 @@ Configured in `<dataDir>/config.json`, seeded on first run with Kiro, Claude
 Code, Gemini CLI, Codex, and — when running from a checkout — an offline mock
 agent that always passes, so you can try the chat with no agent installed.
 
+The mock plays the README screenshot's chat when a message starts with
+`Add a /health endpoint`: a read, an edit, a test run and a permission prompt,
+at the screenshot's timing (set `MOCK_DEMO_PACE=0.2` for five times faster).
+`MOCK_LONG_STEP_MS` stretches its `long` turn, for a chat that stays On air.
+
 Adding another is a config entry, not code:
 [PROVIDERS.md](PROVIDERS.md) has the recipe and an honest table of
 which ones have actually been run.
