@@ -1,112 +1,108 @@
 # Corella
 
-**A browser chat UI for CLI coding agents.** The feel of the Claude Code and
-Codex desktop apps, in a tab, for any agent that speaks the
-[Agent Client Protocol](https://agentclientprotocol.com) — Kiro CLI, Claude
-Code, Gemini CLI, Codex.
+**A chat window in your browser for the coding agent on your machine.**
 
-Your agent runs on your machine, in your project, as it always has. Corella
-gives it a proper window: streamed answers with real markdown, tool calls and
-diffs as things you can read, permissions and questions as things you can
-click, and every conversation kept, searchable and resumable.
+![Corella: an agent finds a failing test, shows its edit as a diff, and asks before running the suite](docs/screenshot.png)
+
+Your agent runs where it always has: on your computer, in your project.
+Corella gives it a proper window. Answers stream in as real Markdown. Tool
+calls and file edits are things you can read, not walls of text. Permission
+prompts are buttons. Every conversation is kept, searchable and resumable.
+
+It talks to agents over the [Agent Client Protocol](https://agentclientprotocol.com)
+(ACP). It was called KiroChrome before 0.1.0.
+
+## Quick start
+
+You need [Node](https://nodejs.org/) 22.5 or newer and git.
 
 ```bash
-git clone https://github.com/bobbyely/corella.git && cd corella
-npm install && npm start        # prints a link: open it
+git clone https://github.com/bobbyely/corella.git
+cd corella
+npm install
+npm start
 ```
 
-Open the link it prints, `http://127.0.0.1:4711/?token=…`. The token logs your
-browser in, so other programs on the machine cannot use Corella's API; your
-browser remembers it, so next time plain `http://127.0.0.1:4711` is enough.
+It prints a link like `http://127.0.0.1:4711/?token=…`. Open it. Your browser
+stays logged in after that, so next time `http://127.0.0.1:4711` is enough.
 
-Needs Node 22.5+. Press **Check** on an agent, then **New chat**. No agent
-installed yet? A built-in mock agent lets you try the chat anyway.
+Go to **Setup**, press **Check** on your agent, then **New chat**. No agent
+installed yet? The built-in mock agent lets you try it anyway.
+
+## Which agents
+
+| Agent | Status |
+|---|---|
+| [Kiro CLI](https://kiro.dev/) | Tested |
+| Claude Code, Gemini CLI, Codex | Speak the same protocol and should work. Not tested yet |
+
+Adding another ACP agent is a config entry, not code. See
+[docs/PROVIDERS.md](docs/PROVIDERS.md).
 
 ## What you get
 
-**A real transcript.** Streaming markdown and highlighted code. Tool calls
-fold into one line while the agent works and open on demand. File edits show
-as diffs. Permission prompts and the agent's structured questions are forms,
-not prose to parse.
+- **A readable transcript.** Code is highlighted. Edits show as diffs. A
+  pane lists every file the agent changed, and another browses the project.
+- **Nothing lost.** Close the tab or restart the server, and the conversation
+  is still there. Search across all of them. Pick up chats you started in the
+  agent's own terminal.
+- **Control mid-turn.** Type while the agent works and your message waits its
+  turn, or interrupt. Stop really stops it, with no stray processes.
+- **Switch agent mid-chat.** The next agent is handed the conversation so far.
+- **Schedules.** Run a saved prompt every hour, or daily at a set time.
+- **Rooms.** Two or more agents and you, talking in turns.
+- **Context meter.** How full the agent's memory is, and what it has cost.
 
-**Changes at a glance.** A pane beside the conversation lists every file the
-agent has edited, with its net diff — no hunting the transcript for the tool
-call that did it.
+## Is it safe?
 
-**The project, as it is.** The same pane's Files tab browses the working
-directory read-only, each format shown the way it is meant to be read: code
-with line numbers, Markdown rendered, JSON pretty-printed, CSV as a table,
-images and PDFs inline. Git-ignored files are dimmed, not hidden. Add other
-directories to browse alongside — a reference project, say — and they stay
-with the conversation.
+Corella is built to run on your own machine, for you alone.
 
-**Nothing lost.** Every conversation is persisted as it happens. Refresh,
-close the tab, restart the server: reopen it and pick up where it was. Search
-across all of them. Conversations you started in the agent's own terminal can
-be continued here too.
+- It listens on `127.0.0.1` only, so other computers cannot reach it.
+- Every page and call needs the login link's token, so other programs and
+  websites cannot use it.
+- **Do not put it on a network.** The agents it starts can read and change your
+  files and run commands as you. That is what coding agents do.
 
-**Stay in control mid-turn.** Type while the agent works and the message
-queues for when it finishes — or **Interrupt & send** to cut the turn short
-for something that cannot wait. Stop kills a runaway turn cleanly, with no
-orphaned processes left behind.
+Found a security problem? See [SECURITY.md](SECURITY.md).
 
-**Schedules.** Save a prompt and have the server run it every N minutes or
-daily at a time — a nightly review, a CI check, a morning brief. Each run is an
-ordinary conversation you can open and continue. The browser can be closed;
-the server cannot.
+## Settings
 
-**Rooms.** Two or more agents and you, talking in turns — a planner and a
-critic working over a topic, say. Each agent is its own conversation; the room
-decides who speaks next and shows each one what was said since its last turn.
-Each participant gets its own model and opening command. Typing holds the
-room, Enter sends, Cmd+Enter cuts in on whoever is speaking, **Steer** changes
-the topic or the rules mid-conversation, and a turn budget and credit cap keep
-it from running away.
+All optional. Set them as environment variables before `npm start`.
 
-**Context you can see.** A meter shows how much of the agent's window is used,
-and what the conversation has cost where the agent reports it.
+| Variable | Default | What it does |
+|---|---|---|
+| `CORELLA_PORT` | `4711` | The port it listens on |
+| `CORELLA_DATA_DIR` | see below | Where conversations and settings are kept |
+| `CORELLA_CWD` | where you ran `npm start` | The folder a new chat starts in |
+| `CORELLA_TRACE` | off | `1` logs every message to and from the agent, for debugging |
+| `CORELLA_DEV` | off | `1` trusts the hot-reload dev server. `npm run dev` sets it; leave it off otherwise |
 
-**Any ACP agent.** Adding one is a config entry, not code. A setup page checks
-each agent before you rely on it and names exactly what is wrong when it
-fails — and remembers what it offers, so you pick the model before a chat,
-schedule or room starts, and can open with a command like `/effort high`.
-Settings an agent exposes only as a command, like Kiro's `/effort`, sit beside
-the model picker anyway. New chat opens the way the last one started — same
-directory, provider, model and opening command — so a routine start is one
-click, and anything you change is what it remembers next time.
+The old `KIROCHROME_*` names still work in 0.1.0.
 
-**Point the agent at a file.** Type `@` and pick from the conversation's
-directories — the working directory, and any you added in the Files tab. The
-file goes to the agent as a resource link beside your message, which every
-ACP agent accepts, and the message shows what was attached.
+## Where your data lives
 
-**Switch agents mid-conversation.** A provider picker sits first in that row.
-Choose another and the same conversation carries on with it: the new agent
-starts in the same directory and is given the transcript so far with your
-next message. A divider in the transcript marks the seam and shows exactly
-what was sent. Models, modes and effort change the same way, whenever the
-agent advertises them.
+| OS | Folder |
+|---|---|
+| Linux | `~/.local/share/corella/` |
+| macOS | `~/Library/Application Support/corella/` |
+| Windows | `%APPDATA%\corella\` |
 
-**Something to do while you wait.** Two word games in the corner. A game in
-progress survives switching conversations.
+It holds the conversations (`corella.db`), the agent list (`config.json`) and
+the login token (`token`). Only your user can read it. Coming from KiroChrome?
+The old `kirochrome` folder is moved here on first start, chats included.
 
-## How it works
+Runs on macOS and Linux. Windows works, but stray agent processes are not
+cleaned up after a crash there.
 
-```
-browser (React) ──WebSocket──▶ local server ──JSON-RPC/stdio──▶ your agent
-```
+## Contributing
 
-The server is the ACP client. It owns the agent process and the turn, so a
-dropped socket costs nothing; the browser only renders an append-only event
-log. Localhost only, by design. macOS and Linux; Windows best-effort — it
-runs, but agents a crashed server leaves behind are not cleaned up there.
+Issues and pull requests are welcome. Coding agents are welcome too: start
+with [AGENTS.md](AGENTS.md), which has the rules and a map of the code.
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) covers running from a checkout,
+hot reload and tests (`npm test`).
 
-## Docs
+## Licence
 
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — running from a checkout, hot
-  reload, worktrees, provider config, environment variables, diagnostics
-- [docs/PROVIDERS.md](docs/PROVIDERS.md) — adding an agent, and what has been run
-- [docs/DESIGN.md](docs/DESIGN.md) — the architecture and the reasoning behind it
-- [docs/PLAN.md](docs/PLAN.md) — what is next
-- [AGENTS.md](AGENTS.md) — the rules, for anyone (or anything) writing code here
-- [docs/PROTOCOL.md](docs/PROTOCOL.md) · [docs/GOTCHAS.md](docs/GOTCHAS.md)
+[MIT](LICENSE).
+
+A personal project, maintained in spare time.
