@@ -98,4 +98,9 @@ test("the build is needed when missing or older than a source, and not otherwise
   write("packages/web/src/App.tsx", old);
   write("packages/server/package.json", later);
   assert.match(buildNeeded(root), /server\/package\.json changed/);
+  write("packages/server/package.json", old);
+
+  // Vite copies the web app's manifest and icons into dist, so they are inputs too.
+  write("packages/web/public/manifest.webmanifest", later);
+  assert.match(buildNeeded(root), /manifest\.webmanifest changed/);
 });

@@ -151,7 +151,8 @@ function newest(dir, skip) {
 
 /**
  * Why the build must run, or null when it is current. A package is stale when
- * anything in its `src`, or a file beside it (package.json, tsconfig.json,
+ * anything in its `src` or `public` (the web app's manifest and icons, which
+ * the build copies into `dist`), or a file beside it (package.json, tsconfig.json,
  * vite.config.ts, index.html), is newer than everything in its `dist`. Not its
  * `test` folder: the build never writes anything for that, so an edited test
  * would make every start rebuild.
@@ -165,7 +166,9 @@ export function buildNeeded(root) {
   for (const pkg of PACKAGES) {
     const output = newest(join(root, pkg, "dist"), () => false);
     if (output.time === 0) return `${pkg} has not been built yet`;
-    const source = newest(join(root, pkg, "src"), () => false);
+    const src = newest(join(root, pkg, "src"), () => false);
+    const pub = newest(join(root, pkg, "public"), () => false);
+    const source = src.time > pub.time ? src : pub;
     const beside = newest(join(root, pkg), (entry) => entry.isDirectory() || entry.name.endsWith(".tsbuildinfo"));
     const input = source.time > beside.time ? source : beside;
     if (input.time > output.time) return `${input.file.slice(root.length + 1)} changed since the last build`;

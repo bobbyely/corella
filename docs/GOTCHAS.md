@@ -488,3 +488,8 @@ All of these were real races, found the hard way.
   touch; or leave the main checkout's syncing to a moment when you are not
   mid-conversation. Operations that only move refs — `git fetch`, `git push`,
   `gh pr merge` — are safe, because they do not write to the working tree.
+- **A build input is anything the build reads, not only `src`.** `corella`
+  rebuilds when an input is newer than `dist`, and it once looked only at
+  `src` and the files beside it, so an edited icon or manifest in
+  `packages/web/public` ran the stale copy Vite had made into `dist`. A new
+  folder the build copies or reads goes into `buildNeeded` in `bin/cli.mjs`.
