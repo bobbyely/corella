@@ -22,6 +22,7 @@ export interface MenuItem {
   separated?: boolean;
   /** The whole of a label that was shortened, such as a folder's path. */
   title?: string;
+  className?: string;
 }
 
 export function MoreMenu({
@@ -110,7 +111,7 @@ export function MoreMenu({
                 role={item.checked === undefined ? "menuitem" : "menuitemradio"}
                 aria-checked={item.checked}
                 tabIndex={-1}
-                className={`${item.mono ? "mono" : ""} ${item.separated ? "separated" : ""}`}
+                className={`${item.mono ? "mono" : ""} ${item.separated ? "separated" : ""} ${item.className ?? ""}`}
                 onClick={() => {
                   setOpen(false);
                   item.onSelect?.();

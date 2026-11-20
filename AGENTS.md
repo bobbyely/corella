@@ -164,6 +164,7 @@ and holds no authoritative state (invariant 3).
 | `DiffView.tsx`, `diff.ts` | Diff rendering, shared by the tool cards, the Changes tab and the code viewer |
 | `ErrorBoundary.tsx` | Catches a render error so one broken part shows a message, not a blank app |
 | `styles.css`, `theme.ts` | The On Air visual system: one token block per theme (Cream, Studio, Glass), and the theme setting |
+| `ResizeHandle.tsx` | The sidebar's and side pane's drag edge: pointer (mouse, pen, touch) and arrow keys |
 | `icons.tsx`, `MoreMenu.tsx` | The one stroke icon family; the chat header's ··· menu, also the new chat's folder picker |
 | `when.ts` | The sidebar's ages ("9 min", "Tue") and its Today / Earlier split |
 | `fonts/` | Archivo and Red Hat Mono as woff2, self-hosted, with their OFL licences |

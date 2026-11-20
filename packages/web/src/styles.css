@@ -287,7 +287,8 @@ a { color: inherit; }
 
 /* ---------- app shell ---------- */
 /* The sidebar never takes more than 40% of the window, so a narrow one keeps
-   room for the chat. shortcut: no real phone layout yet, that is its own ticket. */
+   room for the chat. Below 860px it is a list that slides over instead: see
+   the narrow-screen block at the end of this file. */
 .shell { display: grid; grid-template-columns: min(var(--sidebar-width, 300px), 40vw) minmax(0, 1fr); height: 100vh; }
 .main { min-width: 0; overflow-y: auto; background: var(--bg); }
 
@@ -1485,7 +1486,78 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--onair); }
   .composer { padding-left: 0; }
   .readout .lab { display: none; }
 }
+/* The composer row and the header give up words before they wrap: the agent's
+   name (already in the header), and the labels of Auto-approve, Stop and
+   Changes, which keep their icons and their names for screen readers. */
+@container chat (max-width: 1040px) {
+  .composer .pick.static { display: none; }
+  .composer-buttons .squeeze { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@container chat (max-width: 820px) {
+  .composer .squeeze, .chat-head .squeeze { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .chat-title { min-width: 0; }
+}
+/* A phone: the row scrolls sideways rather than stacking four deep. */
 @container chat (max-width: 560px) {
-  .readout { display: none; }
+  .composer-config { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .composer-config::-webkit-scrollbar { display: none; }
+  /* Fades at the end, saying there is more to scroll to. */
+  .composer-config { mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); padding-right: 24px; }
+  .readout { padding: 0 8px; gap: 6px; }
+  .chat-title h1 { font-size: var(--fs-lg); }
 }
 
+/* ---------- narrow screens: a phone, a tablet, a small window ----------
+   One column. The sidebar becomes a list that slides over the page, reached
+   by the back key in each header; the Changes and Files pane is a full-screen
+   sheet; Changes moves into the ··· menu. */
+@media (min-width: 861px) {
+  .narrow-only { display: none !important; }
+}
+@media (max-width: 860px) {
+  .shell { display: block; height: 100dvh; }
+  .main { height: 100dvh; }
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 30;
+    /* Short of the full width, so the page beside it can be tapped to close it. */
+    width: min(88vw, 420px);
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0.24s;
+  }
+  .shell.list-open .sidebar { transform: none; visibility: visible; box-shadow: 8px 0 28px rgb(0 0 0 / 0.18); }
+  .sidebar-resize { display: none; }
+  .scrim { position: fixed; inset: 0; z-index: 29; padding: 0; border: none; border-radius: 0; background: rgb(0 0 0 / 0.32); }
+  .list-back { margin: 12px 0 0 12px; }
+  .changes-toggle { display: none; }
+  .changes { position: fixed; inset: 0; z-index: 25; flex-basis: auto !important; border-left: none; }
+  .changes-resize { display: none; }
+  .chat-head { padding-top: max(12px, env(safe-area-inset-top)); }
+  .dock { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .lamp-line { padding-left: 16px; padding-right: 16px; }
+  .chat:not(.blank) > .lamp-line { padding-left: 16px; }
+  /* Inside a row that scrolls, so it is a sheet at the foot of the screen. */
+  .composer .more-menu { position: fixed; top: auto; left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); min-width: 0; max-width: none; z-index: 20; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
+}
+
+/* Fingers: the main controls get a 44px target. */
+@media (max-width: 860px), (pointer: coarse) {
+  .pick, .composer-buttons .plain, .new-chat, .sidebar-item-main, .chat-head .plain,
+  .more > button, .changes-close, .side-tab, .ask-b .hw, .list-back, .sidebar-foot button,
+  .sidebar-search, .more-menu :is([role="menuitem"], [role="menuitemradio"]) { min-height: 44px; }
+  .hw.send { width: 44px; height: 44px; }
+  .composer-buttons .plain { min-width: 44px; justify-content: center; }
+  .pick.icon, .chat-head .plain.icon, .more > button.icon, .changes-close { min-width: 44px; }
+  .sidebar-action { min-width: 32px; min-height: 32px; justify-content: center; align-items: center; }
+  .sidebar-resize, .changes-resize { width: 14px; }
+}
+.sidebar-resize, .changes-resize { touch-action: none; }
+
+.sidebar-resize:focus-visible, .changes-resize:focus-visible { background: var(--accent-dim); outline-offset: -2px; }

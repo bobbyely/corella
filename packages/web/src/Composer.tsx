@@ -355,16 +355,16 @@ export function Composer({
                 checked={session.autoApprove}
                 onChange={(e) => onSetAutoApprove(e.target.checked)}
               />
-              Auto-approve
+              <span className="squeeze">Auto-approve</span>
             </label>
           )}
         </div>
         <div className="composer-buttons">
           {/* Stop is there only while there is something to stop. */}
           {busy && (
-            <button className="plain" onClick={onCancel}>
+            <button className="plain" onClick={onCancel} title="Stop the agent">
               <Icon name="stop" size={14} />
-              Stop
+              <span className="squeeze">Stop</span>
             </button>
           )}
           {busy && !empty && (

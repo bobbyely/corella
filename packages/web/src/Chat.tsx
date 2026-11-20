@@ -52,6 +52,7 @@ export function Chat({
   onPlay,
   draft = false,
   onBegan,
+  onShowList,
 }: {
   providerId?: string;
   cwd?: string;
@@ -72,6 +73,8 @@ export function Chat({
   draft?: boolean;
   /** The new chat's first message was sent: it is a conversation now. */
   onBegan?: (sessionId: string) => void;
+  /** On a narrow screen the list of chats slides over; this shows it. */
+  onShowList?: () => void;
 }) {
   const {
     connected,
@@ -323,6 +326,11 @@ export function Chat({
       <div className={`chat ${blank ? "blank" : ""}`}>
         {draft ? (
           <header className="chat-head">
+            {onShowList && (
+            <button className="plain icon list-button narrow-only" onClick={onShowList} aria-label="Chats" title="Chats">
+              <Icon name="back" />
+            </button>
+          )}
             <div className="chat-title">
               <h1>New chat</h1>
               <p className="chat-sub">Starts with what you used last</p>
@@ -330,6 +338,11 @@ export function Chat({
           </header>
         ) : (
         <header className="chat-head">
+          {!onBack && onShowList && (
+            <button className="plain icon list-button narrow-only" onClick={onShowList} aria-label="Chats" title="Chats">
+              <Icon name="back" />
+            </button>
+          )}
           {onBack && (
             <button className="plain" onClick={onBack} title="Back to where this chat was opened from">
               <Icon name="back" />
@@ -350,19 +363,26 @@ export function Chat({
           {(session?.live || usage) && <Readout events={events} busy={busy} usage={usage} />}
           {session && (
             <button
-              className={`plain ${pane === "changes" ? "active" : ""}`}
+              className={`plain changes-toggle ${pane === "changes" ? "active" : ""}`}
               onClick={() => setPane((p) => (p === "changes" ? null : "changes"))}
               title="Files the agent has changed in this chat"
               aria-pressed={pane === "changes"}
             >
               <Icon name="panel" />
-              Changes
+              <span className="squeeze">Changes</span>
               {changed > 0 && <span className="count">{changed}</span>}
             </button>
           )}
           {session && (
             <MoreMenu
               items={[
+                // The header's Changes button, for a phone, where it is hidden.
+                {
+                  label: pane === "changes" ? "Hide changes" : `Changes${changed > 0 ? ` (${changed})` : ""}`,
+                  icon: <Icon name="panel" />,
+                  className: "narrow-only",
+                  onSelect: () => setPane((p) => (p === "changes" ? null : "changes")),
+                },
                 {
                   label: pane === "files" ? "Hide files" : "Files",
                   icon: <Icon name="folder" />,
@@ -789,6 +809,17 @@ function PermissionCard({
 }) {
   const answered = row.answeredWith !== null;
   const titleId = useId();
+  // Focus moves to an open prompt, so the keyboard and a screen reader land on
+  // it: Tab then reaches Allow. The card, not a button, takes it, so an Enter
+  // meant for the message box can never answer it; and not while something is
+  // being typed, which would be lost from under the cursor.
+  const card = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (answered) return;
+    const active = document.activeElement;
+    const typing = (active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement) && active.value !== "";
+    if (!typing) card.current?.focus();
+  }, [answered]);
   if (answered) {
     return (
       <div className="ask answered" role="group" aria-labelledby={titleId}>
@@ -801,7 +832,7 @@ function PermissionCard({
   }
   const hot = row.options.find((o) => o.kind === "allow_once") ?? row.options.find((o) => o.kind.startsWith("allow"));
   return (
-    <div className="ask" role="group" aria-labelledby={titleId}>
+    <div className="ask" role="group" aria-labelledby={titleId} ref={card} tabIndex={-1}>
       <div className="ask-h">
         <span className="tag cue">
           <CueMark />

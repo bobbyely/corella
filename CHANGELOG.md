@@ -39,6 +39,17 @@ All notable changes to Corella are written down here. The format follows
 - **An effort picker beside the model.** It sets the agent's own effort setting
   where there is one, or sends the agent's `/effort` command quietly where that
   is the only way (Kiro). It never shows as a message or names the chat.
+- **A phone and tablet layout.** Below 860px wide Corella is one column: the
+  list of chats slides over the page, with a back key in every header;
+  Changes and Files open as full-screen sheets; the composer row scrolls
+  sideways; main buttons are 44px for a finger. Nothing scrolls sideways
+  except long code inside its own block.
+- **The resize edges answer the keyboard and touch.** Tab to the sidebar's or
+  the side pane's edge and use the arrow keys (Shift for bigger steps), or drag
+  it with a finger.
+- **A permission prompt takes the focus** when it appears, so Tab reaches
+  Allow. Not while you are typing, and Enter in the message box never answers
+  it.
 - **A `corella` command.** It starts Corella and opens your browser already
   logged in. `corella --app` opens it in its own window (Chrome, Edge, Brave
   or Chromium), `--no-open` just prints the link, and `--port` picks the port.
@@ -53,6 +64,9 @@ All notable changes to Corella are written down here. The format follows
 - **The Opening field** no longer suggests `/effort high`: effort has its own
   picker.
 - **Nothing is smaller than 12px.** Body text is 14 to 15px.
+- **The composer row stays on one line beside the Changes pane** at 1280: the
+  pane opens at 440px, and the row drops the agent's name (it is in the
+  header) and the Stop label before it wraps.
 - **Starting is quicker.** `npm start` and `corella` build only when the code
   has changed since the last build, rather than every time: about 0.2 seconds
   to a running server instead of about 2.3.

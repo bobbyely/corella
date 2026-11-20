@@ -1,4 +1,5 @@
-import { useEffect, useImperativeHandle, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
+import { ResizeHandle } from "./ResizeHandle.js";
 import { AgentConversationsSection, type AdoptTarget } from "./AgentConversations.js";
 import type { RoomView, ScheduleRun, ScheduleView, SessionSummary } from "@corella/shared";
 import { fetchRooms, fetchSchedules } from "./api.js";
@@ -86,26 +87,15 @@ export function Sidebar({
   useEffect(() => {
     document.documentElement.style.setProperty("--sidebar-width", `${width}px`);
   }, [width]);
-  const startResize = (e: PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const handle = e.currentTarget;
-    handle.setPointerCapture(e.pointerId);
-    const onMove = (ev: globalThis.PointerEvent) => setWidth(clampWidth(ev.clientX));
-    const onUp = () => {
-      handle.removeEventListener("pointermove", onMove);
-      handle.removeEventListener("pointerup", onUp);
-      setWidth((w) => {
-        try {
-          localStorage.setItem(WIDTH_KEY, String(w));
-        } catch {
-          // Then it is simply not remembered.
-        }
-        return w;
-      });
-    };
-    handle.addEventListener("pointermove", onMove);
-    handle.addEventListener("pointerup", onUp);
-  };
+  const keepWidth = () =>
+    setWidth((w) => {
+      try {
+        localStorage.setItem(WIDTH_KEY, String(w));
+      } catch {
+        // Then it is simply not remembered.
+      }
+      return w;
+    });
   const [showArchived, setShowArchived] = useState(false);
   const [query, setQuery] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
@@ -223,7 +213,17 @@ export function Sidebar({
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-resize" onPointerDown={startResize} title="Drag to resize" />
+      <ResizeHandle
+        className="sidebar-resize"
+        label="Sidebar width"
+        width={width}
+        min={MIN_WIDTH}
+        max={MAX_WIDTH}
+        grow={1}
+        fromPointer={(x) => x}
+        onChange={(w) => setWidth(clampWidth(w))}
+        onCommit={keepWidth}
+      />
       <div className="sidebar-head">
         <span className="brand">Corella</span>
       </div>

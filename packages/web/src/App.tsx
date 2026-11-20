@@ -1,5 +1,6 @@
 import type { StartOptions } from "@corella/shared";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "./icons.js";
 import { Chat } from "./Chat.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
 import type { AdoptTarget } from "./AgentConversations.js";
@@ -41,6 +42,11 @@ type View =
 export function App() {
   const [view, setView] = useState<View>({ name: "new", n: 0 });
   const drafts = useRef(0);
+  // On a narrow screen the sidebar is a list that slides over the page.
+  // Going anywhere closes it.
+  const [listOpen, setListOpen] = useState(false);
+  const showList = useCallback(() => setListOpen(true), []);
+  useEffect(() => setListOpen(false), [view]);
   const newChat = useCallback(() => setView({ name: "new", n: ++drafts.current }), []);
   // Bumped whenever a chat starts, so the sidebar refetches its list.
   const [listVersion, setListVersion] = useState(0);
@@ -72,7 +78,7 @@ export function App() {
       : undefined;
 
   return (
-    <div className="shell">
+    <div className={`shell ${listOpen ? "list-open" : ""}`}>
       <Sidebar
         api={sidebarApi}
         listVersion={listVersion}
@@ -92,7 +98,14 @@ export function App() {
         activeRoomId={view.name === "room" ? view.roomId : view.name === "chat" ? view.roomId : undefined}
       />
 
+      {listOpen && <button className="scrim" aria-label="Close the list" onClick={() => setListOpen(false)} />}
       <main className="main">
+        {view.name !== "chat" && view.name !== "new" && (
+          <button className="plain narrow-only list-back" onClick={showList}>
+            <Icon name="back" />
+            Chats
+          </button>
+        )}
         {/* Keyed per view, so an error is not carried to the next one. A new
             chat keeps its key once it begins: remounting there would close
             the socket its first message went out on. */}
@@ -126,6 +139,7 @@ export function App() {
         {(view.name === "chat" || view.name === "new") && (
           <Chat
             draft={view.name === "new"}
+            onShowList={showList}
             onBegan={(sessionId) =>
               setView((v) => (v.name === "new" ? { name: "chat", sessionId, fromDraft: v.n } : v))
             }

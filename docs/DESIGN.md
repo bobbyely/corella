@@ -311,6 +311,16 @@ The visual system is "On Air" (approved comps and reasoning in
   `timeline.ts`): each event's time since its turn began. A short run of tool
   steps shows one line each with its time; more than `FOLD_AFTER` fold into one
   line.
+- **Narrow screens are one column** (below 860px: a phone, a tablet, a small
+  window). The sidebar is a list that slides over the page, opened by the back
+  key in each header; going anywhere closes it. The Changes and Files pane is a
+  full-screen sheet, and Changes moves into the ··· menu. The composer row and
+  header give up words before they wrap — by container queries on the chat
+  column, so the same happens beside an open pane at 1280 — and on a phone the
+  row scrolls sideways, with the folder menu as a sheet at the foot (a menu
+  inside a scrolling row would be clipped). Main controls are 44px on narrow
+  or touch screens. Pure CSS plus one boolean in `App`; nothing about a chat
+  changes with the width.
 
 ## Robustness: hanging processes
 

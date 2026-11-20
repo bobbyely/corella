@@ -88,6 +88,10 @@ Adding another ACP agent is a config entry, not code. See
   computer's light or dark setting. Pick one in **Settings**.
 - **Its own window.** Install it as an app, so it opens without browser tabs
   around it. See below.
+- **Works on a phone or tablet.** One column: the list of chats slides in from
+  the side, Changes and Files open full screen, and buttons are big enough for
+  a finger, and a narrow window works the same way. Corella only listens on
+  your own machine, so it does not set up a way in from a phone for you.
 
 ## Open it in its own window
 
