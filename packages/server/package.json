@@ -1,6 +1,6 @@
 {
-  "name": "@kirochrome/server",
-  "version": "0.0.0",
+  "name": "@corella/server",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "1.4.0",
-    "@kirochrome/shared": "*",
+    "@corella/shared": "*",
     "ws": "8.18.0"
   }
 }

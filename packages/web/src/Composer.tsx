@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CommandOption, ConfigOption, FileEntry, SessionSummary, SlashCommand } from "@kirochrome/shared";
+import type { CommandOption, ConfigOption, FileEntry, SessionSummary, SlashCommand } from "@corella/shared";
 import { fetchDirectory } from "./api.js";
 import { commonPrefix, complete } from "./commands.js";
 import { completeMention, mentionAt, mentionPath, mentionedIn, splitMention } from "./mentions.js";

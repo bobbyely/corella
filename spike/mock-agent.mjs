@@ -185,7 +185,7 @@ const app = agent({ name: "mock-agent" })
     }
 
     if (params.prompt?.[0]?.text === "leak-then-die") {
-      const dir = process.env.KIROCHROME_DATA_DIR ?? "/tmp";
+      const dir = process.env.CORELLA_DATA_DIR ?? "/tmp";
       await client.request("terminal/create", {
         sessionId: params.sessionId,
         command: "sh",
@@ -440,7 +440,7 @@ const app = agent({ name: "mock-agent" })
     const hung = await client.request("terminal/create", {
       sessionId: params.sessionId,
       command: "sh",
-      args: ["-c", "sleep 9991 --kirochrome-orphan-probe & sleep 9992 --kirochrome-orphan-probe"],
+      args: ["-c", "sleep 9991 --corella-orphan-probe & sleep 9992 --corella-orphan-probe"],
     });
     await notify({
       sessionUpdate: "agent_message_chunk",

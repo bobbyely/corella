@@ -10,7 +10,7 @@ import type {
   ServerMessage,
   SessionSummary,
   StartOptions,
-} from "@kirochrome/shared";
+} from "@corella/shared";
 
 /**
  * Owns the WebSocket and mirrors the server's event log.

@@ -117,7 +117,7 @@ export class TerminalRegistry {
     // unhandled event takes down the whole server — and the agent chooses these
     // commands, so a typo in a tool call must not be fatal.
     child.once("error", (err: NodeJS.ErrnoException) => {
-      this.appendOutput(terminal, `[kirochrome] could not start '${params.command}': ${err.message}\n`);
+      this.appendOutput(terminal, `[corella] could not start '${params.command}': ${err.message}\n`);
       settle({ exitCode: 127, signal: null }); // 127 is the shell's "command not found"
     });
 
@@ -130,7 +130,7 @@ export class TerminalRegistry {
 
   output(id: string): { output: string; truncated: boolean; exitStatus: { exitCode: number | null; signal: string | null } | null } {
     const terminal = this.require(id);
-    const note = terminal.timedOut ? "\n[kirochrome] killed: exceeded the time limit\n" : "";
+    const note = terminal.timedOut ? "\n[corella] killed: exceeded the time limit\n" : "";
     return {
       output: terminal.output + note,
       truncated: terminal.truncated,

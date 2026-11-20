@@ -1,5 +1,5 @@
 /**
- * The closed error vocabulary. Every failure in KiroChrome is one of these
+ * The closed error vocabulary. Every failure in Corella is one of these
  * codes — never a bare string — so the UI can render remediation and we can
  * tell "the binary is missing" apart from "the agent is logged out".
  */
@@ -74,7 +74,7 @@ export const REMEDIATION: Record<KcErrorCode, string> = {
   AGENT_HANDSHAKE_TIMEOUT:
     "The agent started but never completed the ACP handshake. Confirm the command really starts an ACP server (for Kiro that is `kiro-cli acp`). If it is wrapped in `npx`, that is the likely cause: npx re-resolves the package against the registry on every spawn and can use the whole timeout before the agent runs. Install the agent and point at its binary instead.",
   AGENT_PROTOCOL_MISMATCH:
-    "This agent speaks an ACP version we do not support. Update the agent, or update KiroChrome.",
+    "This agent speaks an ACP version we do not support. Update the agent, or update Corella.",
   AGENT_AUTH_REQUIRED:
     "The agent needs you to log in before it will start a session. Use one of the authentication methods listed below.",
   AGENT_SESSION_FAILED:
@@ -100,7 +100,7 @@ export const REMEDIATION: Record<KcErrorCode, string> = {
   ORIGIN_REJECTED:
     "This page is not on an origin the server trusts. Open the app at the URL the server printed. In development, use the URL `npm run dev` printed and make sure no other dev server is holding port 5173 — Vite otherwise moves to another port the server rejects.",
   AUTH_REQUIRED:
-    "Open KiroChrome with the link it printed in the terminal when it started (it ends in `?token=…`). That logs this browser in. Scripts can send the token as `Authorization: Bearer <token>`; it is in the file `token` in the data folder.",
+    "Open Corella with the link it printed in the terminal when it started (it ends in `?token=…`). That logs this browser in. Scripts can send the token as `Authorization: Bearer <token>`; it is in the file `token` in the data folder.",
   INTERNAL: "An unexpected internal error. Please report this with the details below.",
 };
 

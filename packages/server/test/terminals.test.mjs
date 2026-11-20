@@ -8,7 +8,7 @@ let TerminalRegistry, dir;
 
 before(async () => {
   dir = mkdtempSync(join(tmpdir(), "kc-terminals-"));
-  process.env.KIROCHROME_DATA_DIR = dir;
+  process.env.CORELLA_DATA_DIR = dir;
   ({ TerminalRegistry } = await import("../dist/terminals.js"));
 });
 after(() => rmSync(dir, { recursive: true, force: true }));

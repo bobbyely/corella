@@ -1,4 +1,4 @@
-import type { ConfigOption, ProviderView, StartOptions } from "@kirochrome/shared";
+import type { ConfigOption, ProviderView, StartOptions } from "@corella/shared";
 
 /**
  * Model, mode and the rest, chosen before a session exists.

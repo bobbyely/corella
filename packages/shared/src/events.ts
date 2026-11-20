@@ -46,7 +46,7 @@ export type KcEvent = KcEventBase &
      * The seam where a conversation started in the agent's own CLI was adopted.
      *
      * Everything above it was replayed by the agent on `session/load` and
-     * captured once; everything below is KiroChrome's own log. It is an event
+     * captured once; everything below is Corella's own log. It is an event
      * rather than UI state because the distinction has to survive a refresh and
      * a restart — invariant 3.
      */
@@ -66,7 +66,7 @@ export type KcEvent = KcEventBase &
     | { type: "root_added"; path: string }
     | { type: "root_removed"; path: string }
     /**
-     * The conversation moved to another provider. A KiroChrome handoff, not
+     * The conversation moved to another provider. A Corella handoff, not
      * an ACP transfer — one agent cannot load another's session — so the new
      * agent is given the transcript up to `throughSeq` as context with the
      * next message. The text is not stored: it is derived from the log by

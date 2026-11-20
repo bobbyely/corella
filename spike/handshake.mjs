@@ -63,7 +63,7 @@ child.on("error", (err) => {
 
 const stream = ndJsonStream(Writable.toWeb(child.stdin), Readable.toWeb(child.stdout));
 
-const app = client({ name: "kirochrome-spike" })
+const app = client({ name: "corella-spike" })
   // Log every streamed update raw. Seeing the real shapes is the point of this.
   .onNotification("session/update", ({ params }) => {
     const kind = params?.update?.sessionUpdate ?? "?";
@@ -96,7 +96,7 @@ try {
         fs: { readTextFile: true, writeTextFile: true },
         terminal: true,
       },
-      clientInfo: { name: "kirochrome-spike", version: "0.0.0" },
+      clientInfo: { name: "corella-spike", version: "0.0.0" },
     });
     dump("initialize response", init);
     console.log(`\nwe sent protocolVersion=${PROTOCOL_VERSION}, agent replied ${init.protocolVersion}`);

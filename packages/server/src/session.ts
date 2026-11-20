@@ -23,11 +23,12 @@ import {
   type StartOptions,
   type SessionRecord,
   type SessionSummary,
-} from "@kirochrome/shared";
-import { resolveProvider, spawnAgent, type AgentProcess } from "./agentProcess.js";
+} from "@corella/shared";
+import { clientInfo, resolveProvider, spawnAgent, type AgentProcess } from "./agentProcess.js";
 import { normaliseConfigOptions } from "./configOptions.js";
 import { coerceContent, toFields } from "./elicitation.js";
 import { pathToFileURL } from "node:url";
+import { env } from "./paths.js";
 import { resolveMention } from "./files.js";
 import { readTextFile, writeTextFile } from "./fs.js";
 import type { Store } from "./store.js";
@@ -284,14 +285,14 @@ export class Session {
    * The same `session/load` as `resume`, with the replay *kept* rather than
    * discarded. `resume` throws the replay away because our log already holds
    * that history; here our log is empty, so the agent's replay is the only copy
-   * of the transcript in existence as far as KiroChrome is concerned. Dropping
+   * of the transcript in existence as far as Corella is concerned. Dropping
    * it would leave the conversation looking like it began the moment we
    * attached, and keeping it in the browser instead would break invariant 3 —
    * it would vanish on refresh.
    *
    * Capturing is still append-only: these are INSERTs into a fresh conversation
    * (invariant 2). It happens exactly once, at adoption, because this is a new
-   * KiroChrome session id — every later reopen goes through `resume` and
+   * Corella session id — every later reopen goes through `resume` and
    * discards the replay, so the transcript cannot be duplicated.
    */
   static async adopt(
@@ -348,7 +349,7 @@ export class Session {
       for (const fn of this.exitListeners) fn(this.exitReason(code, signal));
     });
 
-    const app = client({ name: "kirochrome" })
+    const app = client({ name: "corella" })
       .onNotification("session/update", ({ params }) => this.onUpdate(params.update))
       // Kiro reports context usage on its own notification rather than ACP's
       // `usage_update`. Logged as an update under that method name — raw, like
@@ -401,7 +402,7 @@ export class Session {
           // sending and the row stops appearing. Nothing else depends on it.
           session: { compaction: {} },
         },
-        clientInfo: { name: "kirochrome", version: "0.0.0" },
+        clientInfo,
       }),
       HANDSHAKE_TIMEOUT_MS,
       () =>
@@ -475,7 +476,7 @@ export class Session {
           {
             remediation:
               "The agent may no longer have this session in its own storage — agents expire them " +
-              "independently of KiroChrome. The transcript is still readable; start a new chat to continue.",
+              "independently of Corella. The transcript is still readable; start a new chat to continue.",
             detail: {
               agentSessionId: opts.loadSessionId,
               cwd: this.cwd,
@@ -495,7 +496,7 @@ export class Session {
       }
       await this.applyDefaults();
       // The seam goes *after* the replay: everything above it came from the
-      // agent, and KiroChrome's log starts below it.
+      // agent, and Corella's log starts below it.
       this.append(
         opts.captureReplay
           ? {
@@ -1007,7 +1008,7 @@ export class Session {
       this.emitError(
         kcError("RPC_ERROR", `'${this.provider.name}' asked for an elicitation we cannot show.`, {
           remediation:
-            "KiroChrome answers form-mode elicitations only, and advertises exactly that. " +
+            "Corella answers form-mode elicitations only, and advertises exactly that. " +
             "The agent asked for a different mode, so the question was declined.",
           detail: { mode: params.mode ?? null },
         }),
@@ -1443,5 +1444,5 @@ export class Session {
  * user actually invoked npm.
  */
 export function defaultCwd(): string {
-  return process.env.KIROCHROME_CWD ?? process.env.INIT_CWD ?? process.cwd();
+  return env("CWD") ?? process.env.INIT_CWD ?? process.cwd();
 }

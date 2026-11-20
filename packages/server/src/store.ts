@@ -12,7 +12,7 @@ import type {
   SearchHit,
   SessionRecord,
   StartOptions,
-} from "@kirochrome/shared";
+} from "@corella/shared";
 import { dbPath, ensureDataDir } from "./paths.js";
 
 /**
@@ -64,7 +64,7 @@ export class Store {
 
       CREATE INDEX IF NOT EXISTS idx_sessions_updated ON sessions(updated_at DESC);
       -- Adoption looks conversations up by the agent's own session id, to avoid
-      -- two KiroChrome logs appending over one agent session.
+      -- two Corella logs appending over one agent session.
       CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_session_id);
 
       -- Full-text index over what was actually said. Derived from the event
@@ -315,7 +315,7 @@ export class Store {
   /**
    * The conversation already holding an agent session, if there is one.
    *
-   * Two KiroChrome conversations pointing at one agent session would both
+   * Two Corella conversations pointing at one agent session would both
    * append to it and disagree about its transcript, so adopting checks here
    * first and reopens the existing one instead.
    */

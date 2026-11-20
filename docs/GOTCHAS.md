@@ -243,7 +243,7 @@ All of these were real races, found the hard way.
   entry does not mean "our dev server", it means any project the user happens to
   be running. `PATCH /api/providers/:id` sets the command we spawn, so a page on
   an unrelated origin could choose what runs on the machine. Dev-only trust
-  needs a dev-only signal: `KIROCHROME_DEV=1`, set by `scripts/dev.mjs` and
+  needs a dev-only signal: `CORELLA_DEV=1`, set by `scripts/dev.mjs` and
   nothing else.
 - **Anything stored from the browser and served back to it needs its
   `Content-Type` re-checked.** An attachment's `mime` was validated as "a
@@ -435,7 +435,7 @@ All of these were real races, found the hard way.
 - **Two dev servers cannot run at once.** They share ports 4711 and 5173 *and*
   one sqlite database, so the second one to start fails on the port if you are
   lucky and interleaves conversations in one database if you are not.
-- **Driving KiroChrome from inside KiroChrome: `git pull` kills the agent doing
+- **Driving Corella from inside Corella: `git pull` kills the agent doing
   the work.** If the agent you are talking to was spawned by `npm run dev` in
   this checkout, any git operation that rewrites `packages/*/src/*.ts` — pull,
   rebase, checkout, `wt prune` — makes `tsc -b -w` rebuild `dist`, which makes

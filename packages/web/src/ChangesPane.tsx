@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { KcEvent } from "@kirochrome/shared";
+import type { KcEvent } from "@corella/shared";
 import { collectChanges, relativeTo, type FileChange } from "./changes.js";
 import { DiffView } from "./DiffView.js";
 

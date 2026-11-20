@@ -37,7 +37,7 @@ export function loadToken(): string {
  * Per port, because cookies ignore the port: two servers on one machine
  * would otherwise overwrite each other's login.
  */
-export const cookieName = (port: number) => `kirochrome_token_${port}`;
+export const cookieName = (port: number) => `corella_token_${port}`;
 
 /** The login cookie; long-lived, because the token itself is. */
 export function loginCookie(token: string, port: number): string {

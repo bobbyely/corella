@@ -14,7 +14,7 @@ const from = (origin, host = HOST) =>
   originAllowed({ headers: { ...(host === null ? {} : { host }), ...(origin === null ? {} : { origin }) } }, PORT);
 
 afterEach(() => {
-  delete process.env.KIROCHROME_DEV;
+  delete process.env.CORELLA_DEV;
 });
 
 describe("the Origin allowlist", () => {
@@ -39,7 +39,7 @@ describe("the Origin allowlist", () => {
     assert.equal(from("http://localhost:5173"), false);
     assert.equal(from("http://127.0.0.1:5173"), false);
 
-    process.env.KIROCHROME_DEV = "1";
+    process.env.CORELLA_DEV = "1";
     assert.equal(from("http://localhost:5173"), true);
     assert.equal(from("http://127.0.0.1:5173"), true);
     // Still only that one port.
@@ -61,7 +61,7 @@ describe("the Origin allowlist", () => {
   it("says which origin it rejected and what it would have accepted", () => {
     // Vite drifts to 5174 when 5173 is busy, and the page then fails on every
     // request. A bare "not allowed" gave nothing to compare against.
-    process.env.KIROCHROME_DEV = "1";
+    process.env.CORELLA_DEV = "1";
     const error = originRejection({ headers: { host: HOST, origin: "http://127.0.0.1:5174" } }, PORT);
     assert.equal(error.code, "ORIGIN_REJECTED");
     assert.match(error.message, /5174/);

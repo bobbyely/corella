@@ -12,7 +12,7 @@ import type {
   ScheduleInput,
   ScheduleRun,
   SchedulesResponse,
-} from "@kirochrome/shared";
+} from "@corella/shared";
 
 /** Thrown for any non-2xx response, carrying the server's typed error. */
 export class ApiError extends Error {

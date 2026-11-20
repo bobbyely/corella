@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { ProviderCheckResult } from "@kirochrome/shared";
+import type { ProviderCheckResult } from "@corella/shared";
 import { cardStatus, isReady } from "../providerStatus.ts";
 
 const passed = { status: "ok" } as ProviderCheckResult;

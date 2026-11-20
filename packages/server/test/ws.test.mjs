@@ -17,7 +17,7 @@ let dir, store, sessions, server, port;
 
 before(async () => {
   dir = mkdtempSync(join(tmpdir(), "kc-ws-"));
-  process.env.KIROCHROME_DATA_DIR = dir;
+  process.env.CORELLA_DATA_DIR = dir;
   writeFileSync(join(dir, "config.json"), JSON.stringify({ providers: [provider] }));
   const { Store } = await import("../dist/store.js");
   const { SessionManager } = await import("../dist/sessionManager.js");

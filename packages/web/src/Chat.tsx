@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { collectRoots, handoffText, isProviderFault, latestUsage } from "@kirochrome/shared";
+import { collectRoots, handoffText, isProviderFault, latestUsage } from "@corella/shared";
 import type {
   ElicitationAction,
   ElicitationField,
@@ -8,7 +8,7 @@ import type {
   ProviderRef,
   SessionUsage,
   StartOptions,
-} from "@kirochrome/shared";
+} from "@corella/shared";
 import { Composer } from "./Composer.js";
 import { KSpinner } from "./KSpinner.js";
 import { ChangesPane } from "./ChangesPane.js";
@@ -632,7 +632,7 @@ function CompactionRow({ row }: { row: Extract<Row, { kind: "compaction" }> }) {
  * Where a conversation started in the agent's own CLI was taken over.
  *
  * Says so plainly, because the transcript above the seam is whatever the agent
- * chose to replay and KiroChrome never saw it happen — it may be shorter than
+ * chose to replay and Corella never saw it happen — it may be shorter than
  * the real conversation, and it holds no tool output we recorded ourselves.
  */
 type HandoffFor = (throughSeq: number, from: ProviderRef) => Handoff;
@@ -678,8 +678,8 @@ function AdoptedRow({ row }: { row: Extract<Row, { kind: "adopted" }> }) {
         <summary>Adopted from {row.providerName}</summary>
         <p className="remediation">
           Everything above this line was replayed by {row.providerName} when this conversation was
-          opened here, so it is the agent&rsquo;s own record rather than KiroChrome&rsquo;s.
-          KiroChrome&rsquo;s log starts below it.
+          opened here, so it is the agent&rsquo;s own record rather than Corella&rsquo;s.
+          Corella&rsquo;s log starts below it.
         </p>
       </details>
       <span className="compaction-rule" />

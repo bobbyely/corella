@@ -1,4 +1,4 @@
-import type { StartOptions } from "@kirochrome/shared";
+import type { StartOptions } from "@corella/shared";
 
 /**
  * A browser form's StartOptions, kept to the two fields with their proper

@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
-import { collectRoots, isImageMime, kcError, type KcError } from "@kirochrome/shared";
+import { collectRoots, isImageMime, kcError, type KcError } from "@corella/shared";
 import type {
   AgentSessionsResponse,
   ProviderView,
@@ -9,13 +9,14 @@ import type {
   Schedule,
   ScheduleInput,
   SchedulesResponse,
-} from "@kirochrome/shared";
+} from "@corella/shared";
 import { listAgentSessions } from "./agentSessions.js";
 import { authorized, loadToken, loginCookie, sameToken } from "./auth.js";
 import { checkProvider } from "./check.js";
 import { exportFilename, toMarkdown } from "./export.js";
 import { listDirectory, rawFile, readText, validateRoot } from "./files.js";
 import { loadConfig, updateProvider } from "./config.js";
+import { env } from "./paths.js";
 import { RoomManager } from "./rooms.js";
 import { Scheduler } from "./scheduler.js";
 import { SessionManager } from "./sessionManager.js";
@@ -52,7 +53,7 @@ function hostAllowed(host: string | undefined, port: number): boolean {
 
 function allowedOrigins(port: number): Set<string> {
   const allowed = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`]);
-  if (process.env.KIROCHROME_DEV === "1") {
+  if (env("DEV") === "1") {
     allowed.add(`http://localhost:${VITE_PORT}`);
     allowed.add(`http://127.0.0.1:${VITE_PORT}`);
   }
@@ -72,7 +73,7 @@ export function originRejection(req: IncomingMessage, port: number): KcError {
     ? `Requests from ${origin} are not accepted.`
     : `Requests addressed to ${host} are not accepted; this server answers only as localhost or 127.0.0.1.`;
   return kcError("ORIGIN_REJECTED", message, {
-    detail: { origin, host, allowed, devMode: process.env.KIROCHROME_DEV === "1" },
+    detail: { origin, host, allowed, devMode: env("DEV") === "1" },
   });
 }
 
@@ -113,7 +114,7 @@ export function startServer(port: number, webRoot: string | null): Server {
       return;
     }
     if (!authorized(req, token, port)) {
-      const error = kcError("AUTH_REQUIRED", "This browser is not logged in to KiroChrome.");
+      const error = kcError("AUTH_REQUIRED", "This browser is not logged in to Corella.");
       if (url.pathname.startsWith("/api/")) return sendError(res, 401, error);
       res.writeHead(401, { "content-type": "text/plain; charset=utf-8" });
       res.end(`${error.message}\n\n${error.remediation}\n`);
@@ -143,7 +144,7 @@ export function startServer(port: number, webRoot: string | null): Server {
   server.listen(port, HOST, () => {
     // The link is the login, so it is printed whole. In development it lands
     // on Vite's page, which the cookie also covers: cookies ignore the port.
-    console.log(`KiroChrome on http://${HOST}:${port}/?token=${token}`);
+    console.log(`Corella on http://${HOST}:${port}/?token=${token}`);
   });
 
   // Agents are child processes; leaving them behind is the orphan bug we
@@ -161,7 +162,7 @@ export function startServer(port: number, webRoot: string | null): Server {
 
 /** Where the login link lands: this server, or in development Vite's page on the same host. */
 function landingOrigin(req: IncomingMessage): string {
-  if (process.env.KIROCHROME_DEV !== "1") return "";
+  if (env("DEV") !== "1") return "";
   const hostname = (req.headers.host ?? HOST).replace(/:\d+$/, "");
   return `http://${hostname}:${VITE_PORT}`;
 }

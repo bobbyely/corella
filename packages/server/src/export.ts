@@ -1,4 +1,4 @@
-import type { KcEvent, SessionRecord } from "@kirochrome/shared";
+import type { KcEvent, SessionRecord } from "@corella/shared";
 
 /**
  * Renders a conversation as Markdown.
@@ -78,7 +78,7 @@ export function toMarkdown(record: SessionRecord, events: KcEvent[]): string {
       case "adopted":
         lines.push(
           `> Adopted from ${event.providerName}. Everything above was replayed by the agent ` +
-            `rather than logged by KiroChrome.`,
+            `rather than logged by Corella.`,
           "",
         );
         break;

@@ -1,15 +1,15 @@
 import { appendFileSync } from "node:fs";
 import { join } from "node:path";
-import { dataDir, ensureDataDir } from "./paths.js";
+import { dataDir, ensureDataDir, env } from "./paths.js";
 
 /**
- * Optional JSON-RPC frame trace, enabled with KIROCHROME_TRACE=1.
+ * Optional JSON-RPC frame trace, enabled with CORELLA_TRACE=1.
  *
  * Off by default and deliberately dumb: append-only JSONL of every frame in
  * both directions. This is the difference between knowing and guessing when an
  * agent misbehaves.
  */
-const enabled = process.env.KIROCHROME_TRACE === "1";
+const enabled = env("TRACE") === "1";
 let tracePath: string | null = null;
 
 if (enabled) {

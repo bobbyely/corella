@@ -1,4 +1,4 @@
-# KiroChrome — Implementation Plan
+# Corella — Implementation Plan
 
 Companion to [DESIGN.md](DESIGN.md). Each phase ends with something you can
 actually use; no phase is pure scaffolding.
@@ -16,7 +16,7 @@ Phase 0 verifies that assumption before anything is built on it.
 ## Repo layout
 
 ```
-kirochrome/
+corella/
 ├── packages/
 │   ├── shared/   types: WS messages, event payloads, error codes, config
 │   ├── server/   ACP client, SessionManager, TerminalRegistry, store, WS
@@ -120,7 +120,7 @@ behind that capability).
 #### 6. Instructions of your own, across every agent
 
 Agents already read their own user-level instruction files, and the session's
-`cwd` gives them the project's `AGENTS.md`. What is missing is a KiroChrome
+`cwd` gives them the project's `AGENTS.md`. What is missing is a Corella
 layer: write your style once and have it hold whether you are on Kiro, Claude
 Code or Gemini.
 
@@ -139,7 +139,7 @@ session's context.
 
 Do not confuse this with [AGENTS.local.md](../AGENTS.local.md), which steers
 agents working *on this repo*. This one steers agents the user runs *through*
-KiroChrome.
+Corella.
 
 #### Deliberately not doing
 
@@ -249,7 +249,7 @@ than a surprise. Each entry says what would go wrong if it is left.
 - **More directories in the agent's context.** The Files pane now browses
   any directory the user adds, but that is for the person: ACP v1 gives a
   session exactly one `cwd` and no way to widen it, so the *agent* reading a
-  second directory cannot be a KiroChrome feature in general. What exists is
+  second directory cannot be a Corella feature in general. What exists is
   per agent: Claude Code has `/add-dir`, which already reaches it through the
   composer's slash commands; Kiro and Gemini need probing. If more than one
   agent offers it, adding a root could also offer "tell the agent" mapped to
@@ -503,7 +503,7 @@ config-option dialect.
 - [x] Check ladder: `resolve → spawn → initialize → version → authenticate →
       session → capabilities`, each rung its own error code
 - [x] Per-session stderr ring buffer (64KB), attached to error reports
-- [x] `KIROCHROME_TRACE=1` JSON-RPC frame trace
+- [x] `CORELLA_TRACE=1` JSON-RPC frame trace
 - [x] `provider_checks` table (`node:sqlite`), results persisted with timestamp
 - [x] Setup UI: provider list, rung-by-rung ladder, remediation, raw stderr
       behind a details toggle, "Re-check" button

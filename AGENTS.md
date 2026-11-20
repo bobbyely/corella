@@ -1,4 +1,4 @@
-# Steering — KiroChrome
+# Steering — Corella
 
 Read this before writing code. This file is **the rules**; everything else is
 one click away.
@@ -190,7 +190,7 @@ Before you call anything finished:
 
    **Before `gh pr create`, re-read `README.md` against the change.** It is
    the landing page, so the test is a reader's: if someone would choose
-   KiroChrome for what you added, it needs a paragraph; if you changed how
+   Corella for what you added, it needs a paragraph; if you changed how
    something it describes behaves, fix that sentence; if you removed a
    feature, remove its claim. Mechanics, flags and setup do not belong there —
    `docs/DEVELOPMENT.md` does.
@@ -231,7 +231,7 @@ When something misbehaves, in this order:
 1. **Read the agent's stderr.** Its stdout is the JSON-RPC channel and carries
    nothing human-readable; crashes and stack traces go to stderr. The ring
    buffer is on the session, and its tail is attached to error reports.
-2. **Turn on the frame trace** — `KIROCHROME_TRACE=1` writes every JSON-RPC
+2. **Turn on the frame trace** — `CORELLA_TRACE=1` writes every JSON-RPC
    message in both directions to JSONL. Use it before theorising.
 3. **Re-run the provider check.** It reports the exact rung that failed.
 
@@ -270,7 +270,7 @@ is plain git either side of two helpers:
 
 ```bash
 npm run wt -- new <topic>       # git worktree add + npm install, incl. spike/
-cd ../kirochrome-worktrees/<topic>
+cd ../corella-worktrees/<topic>
 #   ... work, commit ...
 git push -u origin <topic>
 gh pr create
@@ -299,7 +299,7 @@ another worktree, so it fails with `'main' is already used by worktree at …` �
 Drop `--delete-branch` too; `prune` deletes the local branch and prunes the
 remote-tracking ref, which is the part `--delete-branch` cannot do here anyway.
 
-**Worktrees are siblings of the repo**, at `../kirochrome-worktrees/<topic>`,
+**Worktrees are siblings of the repo**, at `../corella-worktrees/<topic>`,
 not folders inside it: a nested checkout would be picked up by the npm
 workspace glob, by `tsc -b` and by vite's watcher.
 

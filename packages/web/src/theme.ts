@@ -1,6 +1,6 @@
 export type Theme = "system" | "light" | "dark";
 
-const KEY = "kirochrome.theme";
+const KEY = "corella.theme";
 
 /**
  * Theme is a per-browser preference, not conversation state, so localStorage is

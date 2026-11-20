@@ -8,8 +8,8 @@ import {
   type ProviderCheckResult,
   type ProviderConfig,
   type StageOutcome,
-} from "@kirochrome/shared";
-import { resolveProvider, spawnAgent, type AgentProcess } from "./agentProcess.js";
+} from "@corella/shared";
+import { clientInfo, resolveProvider, spawnAgent, type AgentProcess } from "./agentProcess.js";
 import { defaultCwd } from "./session.js";
 import { normaliseConfigOptions } from "./configOptions.js";
 import { withTimeout } from "./timeout.js";
@@ -92,7 +92,7 @@ export async function checkProvider(provider: ProviderConfig): Promise<ProviderC
 
     // The remaining rungs all need the connection open, so they run inside
     // connectWith and the result is carried out.
-    const app = client({ name: "kirochrome" })
+    const app = client({ name: "corella" })
       // A check must never block on a permission prompt; refuse and move on.
       .onRequest("session/request_permission", () => ({ outcome: { outcome: "cancelled" } }));
 
@@ -103,7 +103,7 @@ export async function checkProvider(provider: ProviderConfig): Promise<ProviderC
           acp.request("initialize", {
             protocolVersion: PROTOCOL_VERSION,
             clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: true },
-            clientInfo: { name: "kirochrome", version: "0.0.0" },
+            clientInfo,
           }),
           HANDSHAKE_TIMEOUT_MS,
           () =>
@@ -200,7 +200,7 @@ export async function checkProvider(provider: ProviderConfig): Promise<ProviderC
 const STDERR_HINTS: Array<{ match: RegExp; hint: string }> = [
   {
     match: /cannot be launched inside another Claude Code session/i,
-    hint: "Start the KiroChrome server from a normal terminal rather than from inside a Claude Code session, then re-run this check.",
+    hint: "Start the Corella server from a normal terminal rather than from inside a Claude Code session, then re-run this check.",
   },
   {
     match: /not logged in|please run .*login|authentication/i,

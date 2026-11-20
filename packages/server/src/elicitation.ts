@@ -2,7 +2,7 @@ import type {
   ElicitationChoice,
   ElicitationField,
   ElicitationValue,
-} from "@kirochrome/shared";
+} from "@corella/shared";
 
 /**
  * Turns ACP's elicitation schema into a flat list of fields.

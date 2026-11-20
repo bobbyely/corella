@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { handoffText, withHandoff } from "@kirochrome/shared";
-import type { KcEvent } from "@kirochrome/shared";
+import { handoffText, withHandoff } from "@corella/shared";
+import type { KcEvent } from "@corella/shared";
 
 let seq = 0;
 const ev = (e: Omit<KcEvent, "seq" | "ts">): KcEvent => ({ ...e, seq: ++seq, ts: 0 }) as KcEvent;

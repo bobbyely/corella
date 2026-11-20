@@ -1,22 +1,22 @@
-# KiroChrome
+# Corella
 
 **A browser chat UI for CLI coding agents.** The feel of the Claude Code and
 Codex desktop apps, in a tab, for any agent that speaks the
 [Agent Client Protocol](https://agentclientprotocol.com) — Kiro CLI, Claude
 Code, Gemini CLI, Codex.
 
-Your agent runs on your machine, in your project, as it always has. KiroChrome
+Your agent runs on your machine, in your project, as it always has. Corella
 gives it a proper window: streamed answers with real markdown, tool calls and
 diffs as things you can read, permissions and questions as things you can
 click, and every conversation kept, searchable and resumable.
 
 ```bash
-git clone https://github.com/bobbyely/kirochrome.git && cd kirochrome
+git clone https://github.com/bobbyely/corella.git && cd corella
 npm install && npm start        # prints a link: open it
 ```
 
 Open the link it prints, `http://127.0.0.1:4711/?token=…`. The token logs your
-browser in, so other programs on the machine cannot use KiroChrome's API; your
+browser in, so other programs on the machine cannot use Corella's API; your
 browser remembers it, so next time plain `http://127.0.0.1:4711` is enough.
 
 Needs Node 22.5+. Press **Check** on an agent, then **New chat**. No agent

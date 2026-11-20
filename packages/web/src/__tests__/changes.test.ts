@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { KcEvent } from "@kirochrome/shared";
+import type { KcEvent } from "@corella/shared";
 import { collectChanges, relativeTo } from "../changes.ts";
 
 let seq = 0;

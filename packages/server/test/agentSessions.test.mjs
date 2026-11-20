@@ -23,7 +23,7 @@ let listAgentSessions, dir;
 
 before(async () => {
   dir = mkdtempSync(join(tmpdir(), "kc-agent-sessions-"));
-  process.env.KIROCHROME_DATA_DIR = dir;
+  process.env.CORELLA_DATA_DIR = dir;
   ({ listAgentSessions } = await import("../dist/agentSessions.js"));
 });
 after(() => rmSync(dir, { recursive: true, force: true }));

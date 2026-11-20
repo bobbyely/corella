@@ -1,4 +1,4 @@
-import type { StartOptions } from "@kirochrome/shared";
+import type { StartOptions } from "@corella/shared";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Chat } from "./Chat.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
@@ -91,7 +91,7 @@ export function App() {
         <ErrorBoundary key={JSON.stringify(view)}>
         {view.name === "welcome" && (
           <div className="empty">
-            <h1>KiroChrome</h1>
+            <h1>Corella</h1>
             <p className="muted">Start a new chat, or pick one from the left.</p>
             <button className="primary" onClick={() => setView({ name: "new" })}>
               New chat

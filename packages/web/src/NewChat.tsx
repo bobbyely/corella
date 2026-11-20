@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AgentSessionInfo, AgentSessionsResponse, KcError, ProviderView, StartOptions } from "@kirochrome/shared";
-import { advertisesLoadSession, advertisesSessionList } from "@kirochrome/shared";
+import type { AgentSessionInfo, AgentSessionsResponse, KcError, ProviderView, StartOptions } from "@corella/shared";
+import { advertisesLoadSession, advertisesSessionList } from "@corella/shared";
 import { ApiError, fetchAgentSessions } from "./api.js";
 import { useReadyProviders } from "./useReadyProviders.js";
 import { chosen, StartPickers } from "./StartPickers.js";
@@ -152,7 +152,7 @@ export function NewChat({
           <h2 className="section-label">Conversations your agent already has</h2>
           <p className="field-hint">
             Started in the agent&rsquo;s own CLI. Opening one here continues it — the transcript is
-            whatever the agent replays, and KiroChrome&rsquo;s own log starts from the moment you
+            whatever the agent replays, and Corella&rsquo;s own log starts from the moment you
             open it.
           </p>
           {listers.map((provider) => (
@@ -278,7 +278,7 @@ function AgentConversationRow({
 }: {
   info: AgentSessionInfo;
   canOpen: boolean;
-  /** Set when this agent session is already a KiroChrome conversation. */
+  /** Set when this agent session is already a Corella conversation. */
   heldBy: string | undefined;
   onAdopt: () => void;
   onOpenSession: (sessionId: string) => void;

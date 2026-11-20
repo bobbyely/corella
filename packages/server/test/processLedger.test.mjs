@@ -11,7 +11,7 @@ const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { retu
 
 before(async () => {
   dir = mkdtempSync(join(tmpdir(), "kc-ledger-"));
-  process.env.KIROCHROME_DATA_DIR = dir;
+  process.env.CORELLA_DATA_DIR = dir;
   ({ recordProcess, reapOrphans } = await import("../dist/processLedger.js"));
 });
 after(() => rmSync(dir, { recursive: true, force: true }));

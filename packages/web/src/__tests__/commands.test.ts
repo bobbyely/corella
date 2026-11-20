@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { SlashCommand } from "@kirochrome/shared";
+import type { SlashCommand } from "@corella/shared";
 import { commonPrefix, complete } from "../commands.ts";
 
 // Shaped like what Kiro advertises.

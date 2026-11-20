@@ -1,4 +1,4 @@
-import type { FileEntry } from "@kirochrome/shared";
+import type { FileEntry } from "@corella/shared";
 
 /**
  * The pure half of the Files pane: which viewer a file gets, and the small

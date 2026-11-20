@@ -15,11 +15,11 @@ let Store, SessionManager, latestUsage, dir, store, sessions;
 
 before(async () => {
   dir = mkdtempSync(join(tmpdir(), "kc-session-"));
-  process.env.KIROCHROME_DATA_DIR = dir;
+  process.env.CORELLA_DATA_DIR = dir;
   writeFileSync(join(dir, "config.json"), JSON.stringify({ providers: [provider] }));
   ({ Store } = await import("../dist/store.js"));
   ({ SessionManager } = await import("../dist/sessionManager.js"));
-  ({ latestUsage } = await import("@kirochrome/shared"));
+  ({ latestUsage } = await import("@corella/shared"));
   store = new Store(join(dir, "test.db"));
   sessions = new SessionManager(store);
 });
@@ -597,7 +597,7 @@ describe("adopting a conversation the agent already has", () => {
     );
     assert.equal(asked.length, 1, "the replayed user message must be kept too");
 
-    // The seam comes last: agent history above it, KiroChrome's log below.
+    // The seam comes last: agent history above it, Corella's log below.
     const seam = log.at(-1);
     assert.equal(seam.type, "adopted");
     assert.equal(seam.agentSessionId, "cli-1");

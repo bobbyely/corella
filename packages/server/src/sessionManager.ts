@@ -7,7 +7,7 @@ import {
   type ProviderConfig,
   type SessionSummary,
   type StartOptions,
-} from "@kirochrome/shared";
+} from "@corella/shared";
 import { Session } from "./session.js";
 import type { Store } from "./store.js";
 
@@ -31,7 +31,7 @@ export class SessionManager {
    * double-clicked Resume button, or a reconnect are all enough.
    *
    * Adoptions share this map under an `adopt:<agentSessionId>` key: they have
-   * no KiroChrome id yet, so they cannot collide with a resume, and two
+   * no Corella id yet, so they cannot collide with a resume, and two
    * concurrent adoptions of one agent session must still yield one Session.
    */
   private readonly resuming = new Map<string, Promise<Session>>();
@@ -102,7 +102,7 @@ export class SessionManager {
    * Takes over a conversation the agent already has, found via `session/list`.
    *
    * Adopting the same agent session twice would give one agent session two
-   * KiroChrome logs, both appending. So an agent session we already hold is
+   * Corella logs, both appending. So an agent session we already hold is
    * reopened rather than adopted again — and the in-flight map is keyed
    * separately from `resume`'s, because the two are keyed by different ids and
    * a concurrent pair must still collapse to one Session.

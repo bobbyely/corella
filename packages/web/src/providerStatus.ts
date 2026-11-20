@@ -1,4 +1,4 @@
-import type { KcError, ProviderCheckResult } from "@kirochrome/shared";
+import type { KcError, ProviderCheckResult } from "@corella/shared";
 
 export type CardStatus = "running" | "unverified" | "ok" | "failed" | "stale" | "unchecked";
 

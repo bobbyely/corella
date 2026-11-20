@@ -23,7 +23,7 @@ before(async () => {
   dir = mkdtempSync(join(tmpdir(), "kc-http-"));
   web = mkdtempSync(join(tmpdir(), "kc-web-"));
   writeFileSync(join(web, "index.html"), "<!doctype html><title>app</title>");
-  process.env.KIROCHROME_DATA_DIR = dir;
+  process.env.CORELLA_DATA_DIR = dir;
   writeFileSync(
     join(dir, "config.json"),
     JSON.stringify({ providers: [{ id: "p", name: "P", command: "/bin/true", args: [], env: { API_KEY: "sk-secret-value" } }] }),
@@ -43,7 +43,7 @@ after(async () => {
   rmSync(web, { recursive: true, force: true });
 });
 
-const cookie = () => ({ cookie: `kirochrome_token_${port}=${token}` });
+const cookie = () => ({ cookie: `corella_token_${port}=${token}` });
 
 describe("the login token", () => {
   it("refuses the API, the page and a config change without it", async () => {
@@ -73,7 +73,7 @@ describe("the login token", () => {
     assert.equal(res.status, 302);
     assert.equal(res.headers.get("location"), "/chat/x?keep=1");
     const set = res.headers.get("set-cookie");
-    assert.match(set, new RegExp(`^kirochrome_token_${port}=${token};`));
+    assert.match(set, new RegExp(`^corella_token_${port}=${token};`));
     assert.match(set, /HttpOnly/);
     assert.match(set, /SameSite=Strict/);
   });

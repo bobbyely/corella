@@ -14,7 +14,7 @@ let loadConfig, updateProvider, dir;
 
 before(async () => {
   dir = mkdtempSync(join(tmpdir(), "kc-config-"));
-  process.env.KIROCHROME_DATA_DIR = dir;
+  process.env.CORELLA_DATA_DIR = dir;
   ({ loadConfig, updateProvider } = await import("../dist/config.js"));
 });
 after(() => rmSync(dir, { recursive: true, force: true }));

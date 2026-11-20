@@ -1,4 +1,4 @@
-import type { FileEntry } from "@kirochrome/shared";
+import type { FileEntry } from "@corella/shared";
 import type { Completion } from "./commands.js";
 
 /**

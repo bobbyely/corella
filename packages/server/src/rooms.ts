@@ -18,7 +18,7 @@ import {
   type RoomMessage,
   type RoomParticipant,
   type RoomView,
-} from "@kirochrome/shared";
+} from "@corella/shared";
 import type { Session } from "./session.js";
 import type { SessionManager } from "./sessionManager.js";
 import { cleanStart } from "./startOptions.js";

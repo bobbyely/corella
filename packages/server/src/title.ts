@@ -1,4 +1,4 @@
-import { isSlashCommand } from "@kirochrome/shared";
+import { isSlashCommand } from "@corella/shared";
 
 /** Longest a derived title may be before it is cut short. */
 const MAX_LENGTH = 60;

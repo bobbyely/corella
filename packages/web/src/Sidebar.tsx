@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState, type PointerEvent, type RefObject } from "react";
-import type { RoomView, ScheduleRun, ScheduleView, SessionSummary } from "@kirochrome/shared";
+import type { RoomView, ScheduleRun, ScheduleView, SessionSummary } from "@corella/shared";
 import { fetchRooms, fetchSchedules } from "./api.js";
 import { GamesPanel } from "./games/Games.js";
 import { useChat } from "./useChat.js";
@@ -198,7 +198,7 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="sidebar-resize" onPointerDown={startResize} title="Drag to resize" />
       <div className="sidebar-head">
-        <span className="brand">KiroChrome</span>
+        <span className="brand">Corella</span>
       </div>
 
       <button className="new-chat" onClick={onNewChat}>

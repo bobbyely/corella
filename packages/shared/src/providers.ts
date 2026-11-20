@@ -104,7 +104,7 @@ export interface UpdateProviderRequest {
  * One conversation the *agent* is holding, from `session/list`.
  *
  * Narrowed from ACP's `SessionInfo`: the schema requires `sessionId` and `cwd`
- * and makes the rest optional. This is not a KiroChrome conversation — it has
+ * and makes the rest optional. This is not a Corella conversation — it has
  * no event log here until it is adopted.
  */
 export interface AgentSessionInfo {
@@ -122,7 +122,7 @@ export interface AgentSessionsResponse {
   /** True when the agent had more pages than we were willing to fetch. */
   truncated: boolean;
   /**
-   * Agent session ids already adopted, mapped to the KiroChrome conversation
+   * Agent session ids already adopted, mapped to the Corella conversation
    * that holds them — so the UI offers "open" instead of adopting again.
    */
   adopted: Record<string, string>;

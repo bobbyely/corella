@@ -1,4 +1,4 @@
-# KiroChrome — Design
+# Corella — Design
 
 **Status:** implemented, and amended where reality disagreed
 **Last updated:** 2026-09-10
@@ -77,8 +77,8 @@ compiled in (verified on the dev machine). That removes the usual reason to
 reach for flat files, and one store beats two stores that must be kept in sync.
 
 ```
-Linux   $XDG_DATA_HOME/kirochrome/kirochrome.db  (~/.local/share/…)
-macOS   ~/Library/Application Support/kirochrome/kirochrome.db
+Linux   $XDG_DATA_HOME/corella/corella.db  (~/.local/share/…)
+macOS   ~/Library/Application Support/corella/corella.db
 ```
 
 ```sql
@@ -159,7 +159,7 @@ out of the invariants:
   own, which would cost a reply of filler.
 
 The budget is a character count with the oldest messages dropped whole and
-said so. KiroChrome has no model of its own to summarise with, and a hidden
+said so. Corella has no model of its own to summarise with, and a hidden
 summary would be the browser-state mistake in another form.
 
 ## Session lifecycle
@@ -179,7 +179,7 @@ new chat
 
 **The other way in: adoption.** Where an agent keeps conversations of its own,
 `session/list` offers them and choosing one calls `session/load` against a
-freshly minted KiroChrome conversation. Listing is an HTTP endpoint rather than
+freshly minted Corella conversation. Listing is an HTTP endpoint rather than
 a socket message because it happens before any conversation exists — there is
 nothing to stream, and it needs its own short-lived probe agent, which is
 exactly the shape of the check ladder. Adopting *is* a socket message, because
@@ -378,7 +378,7 @@ toggle on the setup page.
 
 ### Optional protocol trace
 
-`KIROCHROME_TRACE=1` writes every JSON-RPC frame, both directions, to a JSONL
+`CORELLA_TRACE=1` writes every JSON-RPC frame, both directions, to a JSONL
 file. Off by default, trivial to implement, and the difference between guessing
 and knowing when an agent misbehaves.
 

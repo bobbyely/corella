@@ -11,7 +11,7 @@ import {
   type FileMention,
   type FilesResponse,
   type KcError,
-} from "@kirochrome/shared";
+} from "@corella/shared";
 
 /**
  * The browser's view of a conversation's directories.

@@ -121,10 +121,10 @@ The finding above says we suppress `session/load`'s replay. That is right for a
 conversation we have logged, and wrong for one the agent owns.
 
 For a conversation started in the agent's own CLI, our log is empty — the
-agent's replay is the only transcript in existence as far as KiroChrome is
+agent's replay is the only transcript in existence as far as Corella is
 concerned. So `Session.adopt` keeps it, and `Session.resume` still discards it.
 Capturing is still append-only (invariant 2): they are INSERTs into a brand new
-conversation. It happens exactly once, because adoption mints a new KiroChrome
+conversation. It happens exactly once, because adoption mints a new Corella
 session id and *every* later reopen goes through `resume` — so the transcript
 cannot be duplicated by reopening, and the suite proves it.
 
@@ -285,7 +285,7 @@ the read; not done yet, and it must stay behind that capability when it is.
 
 Nothing in v1 lets one agent load another's session: `session/load` takes an
 id the *same* agent issued, and the schema has no export. So "switch provider
-mid-conversation" is a KiroChrome handoff — a fresh `session/new` in the same
+mid-conversation" is a Corella handoff — a fresh `session/new` in the same
 `cwd` for the new agent, with the transcript serialised to text and put in
 front of the next `session/prompt`. The seam is a `provider_switched` event;
 the text is derived from the log by `handoffText` rather than stored, so the
@@ -340,7 +340,7 @@ Deliberately not implementing: `nes/*` (next edit suggestions) and
 
 ## Reading the wire
 
-`KIROCHROME_TRACE=1` writes every JSON-RPC frame, both directions, to JSONL in
+`CORELLA_TRACE=1` writes every JSON-RPC frame, both directions, to JSONL in
 the data directory. Use it before theorising about what an agent sent.
 
 To probe an agent without the UI at all, see [PROVIDERS.md](PROVIDERS.md).

@@ -1,12 +1,23 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { createRequire } from "node:module";
 import { Readable, Writable } from "node:stream";
-import { ndJsonStream, type Stream } from "@agentclientprotocol/sdk";
-import { kcError, type KcError } from "@kirochrome/shared";
-import type { ProviderConfig } from "@kirochrome/shared";
+import { ndJsonStream, type Implementation, type Stream } from "@agentclientprotocol/sdk";
+import { kcError, type KcError } from "@corella/shared";
+import type { ProviderConfig } from "@corella/shared";
 import { recordProcess } from "./processLedger.js";
 import { RingBuffer } from "./ringBuffer.js";
 import { resolveCommand } from "./resolve.js";
 import { trace, traceEnabled } from "./trace.js";
+
+/**
+ * Who we say we are in `initialize`. The version comes from this package's
+ * package.json (one level above both `src` and `dist`), so a release bump is
+ * the only place it changes.
+ */
+export const clientInfo: Implementation = {
+  name: "corella",
+  version: (createRequire(import.meta.url)("../package.json") as { version: string }).version,
+};
 
 export interface AgentProcess {
   child: ChildProcess;

@@ -7,7 +7,7 @@ import {
   type ClientMessage,
   type KcError,
   type ServerMessage,
-} from "@kirochrome/shared";
+} from "@corella/shared";
 import { loadConfig } from "./config.js";
 import { defaultCwd } from "./session.js";
 import { SessionManager } from "./sessionManager.js";

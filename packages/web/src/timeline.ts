@@ -7,8 +7,8 @@ import type {
   KcEvent,
   PermissionOption,
   ProviderRef,
-} from "@kirochrome/shared";
-import { isSlashCommand, updateCategory } from "@kirochrome/shared";
+} from "@corella/shared";
+import { isSlashCommand, updateCategory } from "@corella/shared";
 
 /**
  * Folds the event log into renderable rows.

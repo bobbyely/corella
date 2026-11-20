@@ -1,4 +1,4 @@
-import type { KcError } from "@kirochrome/shared";
+import type { KcError } from "@corella/shared";
 
 /**
  * Every RPC gets a timeout (invariant 10). A hung request must become a typed

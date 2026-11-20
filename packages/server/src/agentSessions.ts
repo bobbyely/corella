@@ -5,8 +5,8 @@ import {
   kcError,
   type AgentSessionInfo,
   type ProviderConfig,
-} from "@kirochrome/shared";
-import { resolveProvider, spawnAgent, type AgentProcess } from "./agentProcess.js";
+} from "@corella/shared";
+import { clientInfo, resolveProvider, spawnAgent, type AgentProcess } from "./agentProcess.js";
 import { withTimeout } from "./timeout.js";
 
 const HANDSHAKE_TIMEOUT_MS = 60_000;
@@ -51,7 +51,7 @@ export async function listAgentSessions(
 
     // A probe must never block on a human. It asks nothing that should prompt,
     // but an agent that prompts anyway would hang the request.
-    const app = client({ name: "kirochrome" }).onRequest("session/request_permission", () => ({
+    const app = client({ name: "corella" }).onRequest("session/request_permission", () => ({
       outcome: { outcome: "cancelled" },
     }));
 
@@ -60,7 +60,7 @@ export async function listAgentSessions(
         acp.request("initialize", {
           protocolVersion: PROTOCOL_VERSION,
           clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: true },
-          clientInfo: { name: "kirochrome", version: "0.0.0" },
+          clientInfo,
         }),
         HANDSHAKE_TIMEOUT_MS,
         () =>

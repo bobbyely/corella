@@ -1,4 +1,4 @@
-import type { ConfigOption } from "@kirochrome/shared";
+import type { ConfigOption } from "@corella/shared";
 
 /**
  * Normalises an agent's `session/new` response into one list of selectable

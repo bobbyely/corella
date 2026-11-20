@@ -13,7 +13,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
 
   override componentDidCatch(error: Error) {
-    console.error("[KiroChrome] a part of the page failed to render", error);
+    console.error("[Corella] a part of the page failed to render", error);
   }
 
   override render() {

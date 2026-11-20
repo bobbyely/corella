@@ -1,4 +1,4 @@
-# Developing KiroChrome
+# Developing Corella
 
 How to run it from a checkout, work on it, and look under it when an agent
 misbehaves. For the rules of the codebase see [AGENTS.md](../AGENTS.md).
@@ -8,8 +8,8 @@ misbehaves. For the rules of the codebase see [AGENTS.md](../AGENTS.md).
 Requires **Node 22.5+** (for the built-in `node:sqlite`). See `.nvmrc`.
 
 ```bash
-git clone https://github.com/bobbyely/kirochrome.git
-cd kirochrome
+git clone https://github.com/bobbyely/corella.git
+cd corella
 npm install
 npm start                 # builds everything, prints http://127.0.0.1:4711/?token=…
 ```
@@ -27,7 +27,7 @@ Then press **Check** on a provider, and once it passes,
 If the agent keeps conversations of its own — Claude Code and Kiro both do — the
 new-chat page offers to **browse** them, so a conversation you started in the
 terminal can be continued in the browser. It says so where it matters: the
-transcript above the seam is whatever the agent replays, and KiroChrome's own
+transcript above the seam is whatever the agent replays, and Corella's own
 log starts where you opened it.
 
 ## Development with hot reload
@@ -53,7 +53,7 @@ reopening one and pressing **Resume conversation** picks it back up.
 Each change gets its own git worktree, beside the repo rather than inside it:
 
 ```bash
-npm run wt -- new <topic>     # branch + ../kirochrome-worktrees/<topic> + install
+npm run wt -- new <topic>     # branch + ../corella-worktrees/<topic> + install
 git worktree list             # what is in flight
 npm run wt -- prune           # remove everything merged (--yes to go ahead)
 ```
@@ -101,12 +101,12 @@ that error names each problem. Delete the file to get the defaults back.
 
 | OS | Data directory |
 |---|---|
-| macOS | `~/Library/Application Support/kirochrome/` |
-| Linux | `~/.local/share/kirochrome/` |
+| macOS | `~/Library/Application Support/corella/` |
+| Linux | `~/.local/share/corella/` |
 
-`KIROCHROME_DATA_DIR` overrides it. `KIROCHROME_PORT` changes the port.
-`KIROCHROME_TRACE=1` logs every JSON-RPC frame to a JSONL file in the data
-directory. `KIROCHROME_DEV=1` additionally trusts Vite's origin on port 5173 —
+`CORELLA_DATA_DIR` overrides it. `CORELLA_PORT` changes the port.
+`CORELLA_TRACE=1` logs every JSON-RPC frame to a JSONL file in the data
+directory. `CORELLA_DEV=1` additionally trusts Vite's origin on port 5173 —
 `npm run dev` sets it for you, and a normal run should not: 5173 is Vite's
 default port, so trusting it means trusting any project you happen to have
 running there. Vite is pinned to that port and refuses to start if it is

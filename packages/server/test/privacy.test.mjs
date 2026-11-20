@@ -8,7 +8,7 @@ import { after, describe, it } from "node:test";
 
 const parent = mkdtempSync(join(tmpdir(), "kc-privacy-"));
 const dir = join(parent, "not-yet-created");
-process.env.KIROCHROME_DATA_DIR = dir;
+process.env.CORELLA_DATA_DIR = dir;
 
 after(() => rmSync(parent, { recursive: true, force: true }));
 
@@ -22,7 +22,7 @@ describe("the data folder", { skip: process.platform === "win32" }, () => {
 
     const store = new Store();
     assert.equal(mode(dir), 0o700);
-    for (const file of ["kirochrome.db", "kirochrome.db-wal", "kirochrome.db-shm"]) {
+    for (const file of ["corella.db", "corella.db-wal", "corella.db-shm"]) {
       assert.equal(mode(join(dir, file)), 0o600, file);
     }
     recordProcess(process.pid, "test");

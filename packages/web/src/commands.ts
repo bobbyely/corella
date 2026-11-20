@@ -1,4 +1,4 @@
-import type { CommandOption, SlashCommand } from "@kirochrome/shared";
+import type { CommandOption, SlashCommand } from "@corella/shared";
 
 export interface Completion {
   /** What the picker shows. */

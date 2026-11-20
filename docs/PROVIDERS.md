@@ -13,8 +13,8 @@ to add, remove or correct one; the setup page re-reads it.
 
 | OS | Data directory |
 |---|---|
-| macOS | `~/Library/Application Support/kirochrome/` |
-| Linux | `~/.local/share/kirochrome/` |
+| macOS | `~/Library/Application Support/corella/` |
+| Linux | `~/.local/share/corella/` |
 
 ```jsonc
 {

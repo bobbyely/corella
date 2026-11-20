@@ -13,7 +13,7 @@ let base, project, elsewhere, roots;
 
 before(async () => {
   ({ confine, listDirectory, readText, rawFile, validateRoot, resolveMention } = await import("../dist/files.js"));
-  ({ collectRoots } = await import("@kirochrome/shared"));
+  ({ collectRoots } = await import("@corella/shared"));
   // realpath: on macOS /tmp is a symlink, and confinement compares real paths.
   base = realpathSync(mkdtempSync(join(tmpdir(), "kc-files-")));
   project = join(base, "project");

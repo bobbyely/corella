@@ -110,7 +110,7 @@ function transcript(events: ReadonlyArray<KcEvent>, speakers: Map<number, string
         out.push(`[The conversation moved from ${event.from.name} to ${event.to.name} here.]`);
         break;
       case "adopted":
-        out.push(`[Everything above was said in ${event.providerName}'s own CLI before KiroChrome took the conversation over.]`);
+        out.push(`[Everything above was said in ${event.providerName}'s own CLI before Corella took the conversation over.]`);
         break;
       default:
         break; // usage, permissions, terminals, errors: bookkeeping, not conversation

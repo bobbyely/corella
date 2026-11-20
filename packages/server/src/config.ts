@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { causeOf, kcError, type ProviderConfig, type Validated } from "@kirochrome/shared";
+import { causeOf, kcError, type ProviderConfig, type Validated } from "@corella/shared";
 import { configPath, ensureDataDir } from "./paths.js";
 
 /**

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
-import { startServer } from "./http.js";
+import { env, migrateFromKiroChrome } from "./paths.js";
 import { reapOrphans } from "./processLedger.js";
 
 /**
@@ -15,7 +15,7 @@ function requireNode(minimum: [number, number]): void {
   if (major > reqMajor || (major === reqMajor && minor >= reqMinor)) return;
 
   console.error(
-    `KiroChrome needs Node ${reqMajor}.${reqMinor} or newer (for the built-in node:sqlite).\n` +
+    `Corella needs Node ${reqMajor}.${reqMinor} or newer (for the built-in node:sqlite).\n` +
       `This is Node ${process.versions.node}, at ${process.execPath}.\n\n` +
       `If you use nvm:  nvm install 22 && nvm use 22\n` +
       `Otherwise see https://nodejs.org/`,
@@ -25,6 +25,10 @@ function requireNode(minimum: [number, number]): void {
 
 requireNode([22, 5]);
 
+// Before anything reads the data folder, so an upgrade from KiroChrome keeps
+// its chats, config and process ledger.
+migrateFromKiroChrome();
+
 // Once, before anything spawns: clean up after a server that died without
 // getting the chance to. Never do this per-session — it would kill processes
 // belonging to sessions that are still running.
@@ -32,6 +36,9 @@ reapOrphans();
 
 const here = dirname(fileURLToPath(import.meta.url));
 const webDist = resolve(here, "..", "..", "web", "dist");
-const port = Number(process.env.KIROCHROME_PORT ?? 4711);
+const port = Number(env("PORT") ?? 4711);
 
+// Imported only now: loading the server pulls in modules that create the data
+// folder (the frame trace), which would stop the old folder moving across.
+const { startServer } = await import("./http.js");
 startServer(port, existsSync(join(webDist, "index.html")) ? webDist : null);

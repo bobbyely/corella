@@ -9,7 +9,7 @@ let Store, dir, store;
 
 before(async () => {
   dir = mkdtempSync(join(tmpdir(), "kc-store-"));
-  process.env.KIROCHROME_DATA_DIR = dir;
+  process.env.CORELLA_DATA_DIR = dir;
   ({ Store } = await import("../dist/store.js"));
   store = new Store(join(dir, "test.db"));
 });

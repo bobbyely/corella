@@ -5,8 +5,8 @@ import {
   SCHEDULE_MAX_MINUTES,
   SCHEDULE_MIN_KEEP,
   SCHEDULE_MIN_MINUTES,
-} from "@kirochrome/shared";
-import type { ProviderView, ScheduleInput, ScheduleRun, ScheduleView } from "@kirochrome/shared";
+} from "@corella/shared";
+import type { ProviderView, ScheduleInput, ScheduleRun, ScheduleView } from "@corella/shared";
 import {
   ApiError,
   createSchedule,

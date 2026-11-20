@@ -6,8 +6,8 @@ import {
   ROOM_MAX_PARTICIPANTS,
   ROOM_MAX_TURNS,
   ROOM_USER,
-} from "@kirochrome/shared";
-import type { ProviderView, RoomInput, RoomView } from "@kirochrome/shared";
+} from "@corella/shared";
+import type { ProviderView, RoomInput, RoomView } from "@corella/shared";
 import { ApiError, createRoom, deleteRoom, fetchRoom, fetchRooms, roomVerb } from "./api.js";
 import { useReadyProviders } from "./useReadyProviders.js";
 import { KSpinner } from "./KSpinner.js";

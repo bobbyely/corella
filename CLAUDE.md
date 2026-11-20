@@ -1,4 +1,4 @@
-# KiroChrome
+# Corella
 
 @AGENTS.md
 

@@ -11,7 +11,7 @@ import {
   type ScheduleInput,
   type ScheduleRun,
   type ScheduleView,
-} from "@kirochrome/shared";
+} from "@corella/shared";
 import { TURN_CLOSED, TURN_FAILED } from "./session.js";
 import type { SessionManager } from "./sessionManager.js";
 import { cleanStart } from "./startOptions.js";

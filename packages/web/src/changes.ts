@@ -1,4 +1,4 @@
-import type { KcEvent } from "@kirochrome/shared";
+import type { KcEvent } from "@corella/shared";
 // `.ts`, not `.js`: the unit suite runs this file under Node's type stripping,
 // which does not rewrite `.js` specifiers, so a pure module the tests import
 // has to name its siblings by their real extension. Vite resolves either.

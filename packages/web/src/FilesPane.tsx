@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { collectRoots, type FileContent, type FileEntry, type KcEvent } from "@kirochrome/shared";
+import { collectRoots, type FileContent, type FileEntry, type KcEvent } from "@corella/shared";
 import { ApiError, fetchDirectory, fetchFile, rawFileUrl, setRoot } from "./api.js";
 import { highlightLine } from "./DiffView.js";
 import { formatSize, isRaw, parseDelimited, prettyJson, TABLE_ROW_LIMIT, viewerFor, whyNotOpenable } from "./files.js";

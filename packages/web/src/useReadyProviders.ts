@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ProviderView } from "@kirochrome/shared";
+import type { ProviderView } from "@corella/shared";
 import { ApiError, fetchProviders } from "./api.js";
 
 /**

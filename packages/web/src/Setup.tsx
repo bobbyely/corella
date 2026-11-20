@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { CHECK_STAGES } from "@kirochrome/shared";
-import type { CheckStage, HostPlatform, KcError, ProviderCheckResult, ProviderView } from "@kirochrome/shared";
+import { CHECK_STAGES } from "@corella/shared";
+import type { CheckStage, HostPlatform, KcError, ProviderCheckResult, ProviderView } from "@corella/shared";
 import { ApiError, fetchProviders, runCheck, updateProvider } from "./api.js";
 import { cardStatus, isReady } from "./providerStatus.js";
 import { applyTheme, effectiveTheme, loadTheme, type Theme } from "./theme.js";

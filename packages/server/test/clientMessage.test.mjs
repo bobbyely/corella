@@ -5,7 +5,7 @@
 // that one client, and must never throw out of the socket's message listener.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CLIENT_MESSAGE_TYPES, parseClientMessage, validateClientMessage } from "@kirochrome/shared";
+import { CLIENT_MESSAGE_TYPES, parseClientMessage, validateClientMessage } from "@corella/shared";
 import { handleFrame } from "../dist/ws.js";
 
 /** Drives one frame through the real handler and returns what was sent back. */

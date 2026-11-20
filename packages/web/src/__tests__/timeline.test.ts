@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { KcEvent } from "@kirochrome/shared";
-import { latestUsage } from "@kirochrome/shared";
+import type { KcEvent } from "@corella/shared";
+import { latestUsage } from "@corella/shared";
 import { buildRows, languageFor, toolContent, toolSubtitle } from "../timeline.ts";
 
 const ev = (e: Partial<KcEvent> & { type: KcEvent["type"] }, seq: number): KcEvent =>

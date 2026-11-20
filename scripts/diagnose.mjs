@@ -9,13 +9,15 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 function dataDir() {
-  if (process.env.KIROCHROME_DATA_DIR) return process.env.KIROCHROME_DATA_DIR;
-  if (process.platform === "darwin") return join(homedir(), "Library", "Application Support", "kirochrome");
-  if (process.platform === "win32") return join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "kirochrome");
-  return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "kirochrome");
+  // shortcut: KIROCHROME_DATA_DIR is the pre-0.1.0 name; drop it in 0.2.0.
+  const set = process.env.CORELLA_DATA_DIR ?? process.env.KIROCHROME_DATA_DIR;
+  if (set) return set;
+  if (process.platform === "darwin") return join(homedir(), "Library", "Application Support", "corella");
+  if (process.platform === "win32") return join(process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"), "corella");
+  return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "corella");
 }
 
-const path = join(dataDir(), "kirochrome.db");
+const path = join(dataDir(), "corella.db");
 if (!existsSync(path)) {
   console.error(`No database at ${path} — has the server run on this machine?`);
   process.exit(1);
