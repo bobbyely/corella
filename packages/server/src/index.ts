@@ -41,4 +41,6 @@ const port = Number(env("PORT") ?? 4711);
 // Imported only now: loading the server pulls in modules that create the data
 // folder (the frame trace), which would stop the old folder moving across.
 const { startServer } = await import("./http.js");
-startServer(port, existsSync(join(webDist, "index.html")) ? webDist : null);
+// Exported for bin/corella.mjs, which imports this file to start the server
+// and waits on the handle to open the browser or explain a busy port.
+export const server = startServer(port, existsSync(join(webDist, "index.html")) ? webDist : null);

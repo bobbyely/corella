@@ -11,8 +11,29 @@ Requires **Node 22.5+** (for the built-in `node:sqlite`). See `.nvmrc`.
 git clone https://github.com/bobbyely/corella.git
 cd corella
 npm install
-npm start                 # builds everything, prints http://127.0.0.1:4711/?token=…
+npm start                 # prints http://127.0.0.1:4711/?token=…
 ```
+
+`npm start` runs `bin/corella.mjs --no-open`, the same script as the `corella`
+command (`npm link` or `npm install -g .` in the checkout puts it on `PATH`;
+both link to the checkout, so it runs whatever you have checked out). It builds
+only when a package's `dist` is missing or older than anything in its `src`
+or the files beside it (`package.json`, `tsconfig.json`, `vite.config.ts`,
+`index.html`), and says which file made it build. It does not look at
+`node_modules`: after an `npm install` that changes a dependency, run
+`npm run build` yourself. Then it imports the server's `dist/index.js` in the
+same process, so Ctrl-C reaches the server directly.
+
+| Option | Does |
+|---|---|
+| (none) | Opens the default browser at the login link (`open`, `xdg-open` or `start`) |
+| `--app` | Opens Chrome, Edge, Brave or Chromium in app mode (`--app=<url>`): the usual install folders on macOS and Windows, then `PATH`. None found: the default browser, with a line saying why |
+| `--no-open` | Opens nothing |
+| `--port <n>` | The port; otherwise `CORELLA_PORT`, otherwise 4711 |
+| `--help`, `--version` | What they say |
+
+The browser is started detached, so it stays open after Ctrl-C. A taken port
+is reported plainly, saying whether the thing on it is another Corella.
 
 Open the printed link. The token in it is the login: the server trades it for a
 cookie (`HttpOnly`, `SameSite=Strict`) and redirects to the plain address, which
@@ -114,7 +135,7 @@ that error names each problem. Delete the file to get the defaults back.
 
 `CORELLA_DATA_DIR` overrides it. `CORELLA_PORT` changes the port.
 `CORELLA_CWD` sets the directory a new chat starts in (otherwise the directory
-`npm start` was run from).
+`corella` or `npm start` was run from).
 `CORELLA_TRACE=1` logs every JSON-RPC frame to a JSONL file in the data
 directory. `CORELLA_DEV=1` additionally trusts Vite's origin on port 5173 —
 `npm run dev` sets it for you, and a normal run should not: 5173 is Vite's

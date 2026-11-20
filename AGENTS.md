@@ -170,6 +170,11 @@ and holds no authoritative state (invariant 3).
 `packages/web/public/` holds the web app manifest and icons, the only files
 served without the login (see `PUBLIC_FILES` in `http.ts`).
 
+**`bin/`** — the `corella` command. `corella.mjs` builds if stale, imports
+the server's `dist/index.js` in-process and opens the browser; `cli.mjs` holds
+its testable decisions (arguments, finding an app-mode browser, staleness).
+Plain `.mjs`, because it has to run before anything is built.
+
 **`spike/`** is misnamed — see the debt section in [PLAN.md](docs/PLAN.md).
 `mock-agent.mjs` is a load-bearing test fixture and a seeded provider, not a
 throwaway; `handshake.mjs` is the probe you use when onboarding an agent.

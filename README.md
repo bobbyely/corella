@@ -20,11 +20,27 @@ You need [Node](https://nodejs.org/) 22.5 or newer and git.
 git clone https://github.com/bobbyely/corella.git
 cd corella
 npm install
-npm start
+npm link          # puts the `corella` command on your PATH
+corella
 ```
 
-It prints a link like `http://127.0.0.1:4711/?token=…`. Open it. Your browser
-stays logged in after that, so next time `http://127.0.0.1:4711` is enough.
+`corella` starts the server and opens your browser, already logged in. Run it
+from the project you want to work on: new chats start in that folder. It builds
+itself the first time, and again only after the code changes, so later starts
+take a moment.
+
+- `corella --app` opens it in its own window instead, without tabs or an
+  address bar (needs Chrome, Edge, Brave or Chromium; otherwise it says so and
+  uses your normal browser).
+- `corella --no-open` just prints the login link, `http://127.0.0.1:4711/?token=…`.
+- `corella --port 4799` uses another port. `corella --help` lists the rest.
+
+`npm install -g .` works instead of `npm link`. Without either, `npm start`
+in the folder runs the same thing without opening a browser. Ctrl-C stops the
+server; the browser window stays open.
+
+The other way to get a window of its own: open Corella once, then use your
+browser's **Install** (or **Add to Dock**) option for the page.
 
 Go to **Settings**, press **Check** on your agent, then **New chat**. No agent
 installed yet? The built-in mock agent lets you try it anyway.
@@ -89,13 +105,13 @@ Found a security problem? See [SECURITY.md](SECURITY.md).
 
 ## Settings
 
-All optional. Set them as environment variables before `npm start`.
+All optional. Set them as environment variables before `corella`.
 
 | Variable | Default | What it does |
 |---|---|---|
 | `CORELLA_PORT` | `4711` | The port it listens on |
 | `CORELLA_DATA_DIR` | see below | Where conversations and settings are kept |
-| `CORELLA_CWD` | where you ran `npm start` | The folder a new chat starts in |
+| `CORELLA_CWD` | where you ran `corella` | The folder a new chat starts in |
 | `CORELLA_TRACE` | off | `1` logs every message to and from the agent, for debugging |
 | `CORELLA_DEV` | off | `1` trusts the hot-reload dev server. `npm run dev` sets it; leave it off otherwise |
 

@@ -28,12 +28,21 @@ All notable changes to Corella are written down here. The format follows
   Brave offer **Install Corella**, and Safari offers **Add to Dock**.
 - **Archivo and Red Hat Mono,** served by Corella itself. No fonts or anything
   else are fetched from outside.
+- **A `corella` command.** It starts Corella and opens your browser already
+  logged in. `corella --app` opens it in its own window (Chrome, Edge, Brave
+  or Chromium), `--no-open` just prints the link, and `--port` picks the port.
+  `npm link` in a clone puts it on your PATH.
 
 ### Changed
 
 - **Setup is now Settings,** with the theme choice, the keyboard shortcuts and
   the agents' checks.
 - **Nothing is smaller than 12px.** Body text is 14 to 15px.
+- **Starting is quicker.** `npm start` and `corella` build only when the code
+  has changed since the last build, rather than every time: about 0.2 seconds
+  to a running server instead of about 2.3.
+- **A taken port gets a plain message**, saying whether Corella is already
+  running there, instead of a stack trace.
 
 ## [0.1.0] - 2026-11-20
 
