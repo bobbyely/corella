@@ -89,6 +89,11 @@ describe("inbound frame validation", () => {
       rejection(await frame('{"type":"list_sessions","includeArchived":"true"}')).message,
       /'includeArchived' must be a boolean/,
     );
+    // The string "false" is truthy, and once turned auto-approve on.
+    assert.match(
+      rejection(await frame('{"type":"open","providerId":"p","start":{"autoApprove":"false"}}')).message,
+      /'start' must be/,
+    );
     // Absent optional fields are fine — this one reaches the handler.
     const sent = await frame('{"type":"list_sessions"}', { list: () => [] });
     assert.deepEqual(sent, [{ type: "sessions", sessions: [] }]);

@@ -186,7 +186,10 @@ export class Session {
    */
   private replaying = false;
   /** Permission requests waiting on the UI, keyed by request id. */
-  private readonly pendingPermissions = new Map<string, (optionId: string | null) => void>();
+  private readonly pendingPermissions = new Map<
+    string,
+    { resolve: (optionId: string | null) => void; optionIds: Set<string> }
+  >();
   /** Elicitations waiting on the UI. Same shape of round trip, different answer. */
   private readonly pendingElicitations = new Map<string, (answer: ElicitationAnswer) => void>();
   private autoApprove = false;
@@ -238,7 +241,7 @@ export class Session {
     await session.connectOrClose();
     await session.applyValues(start.configValues ?? {});
     // Before the opening turn, or its permission prompts are not covered.
-    if (start.autoApprove !== undefined) session.setAutoApprove(start.autoApprove);
+    if (typeof start.autoApprove === "boolean") session.setAutoApprove(start.autoApprove);
     session.persistMeta();
     // The opening message is an ordinary first turn — a slash command for a
     // setting the agent exposes no other way — and is in the transcript like
@@ -939,9 +942,10 @@ export class Session {
     const title = params.toolCall?.title ?? "Allow this action?";
 
     if (this.autoApprove) {
-      // `allow_once` over `allow_always`: an unattended run must not grant an
-      // agent-side permission that outlives it and that nobody saw.
-      const allow = options.find((o) => o.kind === "allow_once") ?? options.find((o) => o.kind.startsWith("allow"));
+      // `allow_once` only, never `allow_always`: an unattended run must not
+      // grant an agent-side permission that outlives it and that nobody saw.
+      // No allow-once option means the prompt goes to the user instead.
+      const allow = options.find((o) => o.kind === "allow_once");
       if (allow) return { outcome: { outcome: "selected" as const, optionId: allow.optionId } };
     }
 
@@ -953,7 +957,7 @@ export class Session {
     // would otherwise find no pending entry and be dropped — leaving the agent
     // blocked forever.
     const answer = new Promise<string | null>((resolve) => {
-      this.pendingPermissions.set(requestId, resolve);
+      this.pendingPermissions.set(requestId, { resolve, optionIds: new Set(options.map((o) => o.optionId)) });
     });
 
     this.append({ type: "permission_request", requestId, title, options });
@@ -973,7 +977,14 @@ export class Session {
 
   /** Answers an outstanding permission request. */
   resolvePermission(requestId: string, optionId: string | null): void {
-    this.pendingPermissions.get(requestId)?.(optionId);
+    const pending = this.pendingPermissions.get(requestId);
+    if (!pending) return;
+    // Only what was offered: an invented id would be passed to the agent as
+    // if the user had picked it.
+    if (optionId !== null && !pending.optionIds.has(optionId)) {
+      throw kcError("MESSAGE_INVALID", `'${optionId}' is not one of the options this prompt offered.`);
+    }
+    pending.resolve(optionId);
   }
 
   /**
@@ -1373,7 +1384,7 @@ export class Session {
    * how a "close" turns into a hang.
    */
   private releasePending(): void {
-    for (const resolve of this.pendingPermissions.values()) resolve(null);
+    for (const { resolve } of this.pendingPermissions.values()) resolve(null);
     this.pendingPermissions.clear();
     for (const resolve of this.pendingElicitations.values()) resolve({ action: "cancel" });
     this.pendingElicitations.clear();

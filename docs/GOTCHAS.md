@@ -229,6 +229,14 @@ All of these were real races, found the hard way.
 - **Auto-approve takes `allow_once`, never `allow_always`.** Picking the first
   option whose kind started with `allow` let an unattended run grant the agent
   a standing, agent-side permission that outlives the run and that nobody saw.
+  The fallback to any `allow*` option did the same when no `allow_once` was
+  offered; now such a prompt waits for the user.
+- **A permission answer must be one of the options offered.** The socket
+  accepted any `optionId` and passed it to the agent as the user's choice.
+- **Type-check a boolean that arrives as JSON.** `start.autoApprove` was not
+  checked, and the string `"false"` is truthy: it turned auto-approve on.
+- **`GET /api/providers` masks `env` values.** They are often API keys, and the
+  page only needs the names.
 - **A convenience entry in the Origin allowlist is a permanent hole.**
   `http://localhost:5173` was in the list unconditionally so the Vite dev server
   could talk to us — but 5173 is Vite's *default*, so in a built install that

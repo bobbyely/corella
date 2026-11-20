@@ -178,6 +178,8 @@ async function handleApi(
   if (url.pathname === "/api/providers" && req.method === "GET") {
     const providers: ProviderView[] = config.providers.map((p) => ({
       ...p,
+      // Names only: the values are often API keys, and the page never needs them.
+      ...(p.env ? { env: Object.fromEntries(Object.keys(p.env).map((k) => [k, "(hidden)"])) } : {}),
       lastCheck: store.lastCheck(p.id),
       defaults: store.rememberedStart(p.id),
     }));

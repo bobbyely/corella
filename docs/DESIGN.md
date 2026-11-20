@@ -212,7 +212,8 @@ become a conversation.** A provider that failed its check, a spawn that
 failed, a run skipped because the previous one was still going: none of those
 has a transcript to be found in, so `schedule_runs` holds one row per firing
 with an outcome and a typed error. Runs are unattended, so they auto-approve
-tool calls — `allow_once` never `allow_always`, since nobody saw the grant —
+tool calls — `allow_once` never `allow_always`, since nobody saw the grant; a
+prompt with no `allow_once` waits for the user like any other —
 and are capped at an hour, after which the turn is cancelled and the run
 recorded as timed out (invariant 10).
 

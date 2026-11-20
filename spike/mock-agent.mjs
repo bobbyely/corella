@@ -165,13 +165,15 @@ const app = agent({ name: "mock-agent" })
     }
 
     // Offers a standing grant first, so auto-approve is tempted to take it.
-    if (params.prompt?.[0]?.text === "ask-always-first") {
+    // "ask-always-only" offers no single-use grant at all.
+    if (params.prompt?.[0]?.text === "ask-always-first" || params.prompt?.[0]?.text === "ask-always-only") {
+      const once = params.prompt[0].text === "ask-always-first";
       const decision = await client.request("session/request_permission", {
         sessionId: params.sessionId,
         toolCall: { toolCallId: "tool-3", title: "Edit files from now on?" },
         options: [
           { optionId: "always", name: "Always allow", kind: "allow_always" },
-          { optionId: "once", name: "Allow once", kind: "allow_once" },
+          ...(once ? [{ optionId: "once", name: "Allow once", kind: "allow_once" }] : []),
           { optionId: "no", name: "Deny", kind: "reject_once" },
         ],
       });

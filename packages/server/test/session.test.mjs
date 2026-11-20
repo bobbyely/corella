@@ -56,6 +56,18 @@ function autoApprove(session) {
   });
 }
 
+/** The next permission prompt the session shows the user. */
+function askedFor(session) {
+  return new Promise((resolve) => {
+    const off = session.subscribe((events) => {
+      const request = events.find((e) => e.type === "permission_request");
+      if (!request) return;
+      off();
+      resolve(request);
+    });
+  });
+}
+
 describe("a turn", () => {
   it("streams, coalesces text, and records a durable log", async () => {
     const session = await sessions.open(provider, "/tmp");
@@ -176,6 +188,36 @@ describe("auto-approve", () => {
     session.setAutoApprove(true);
     await session.prompt("ask-always-first");
     // Auto-approve answers without a prompt event, so ask the agent what it got.
+    const echoed = session.eventsSince(0).filter((e) => e.type === "agent_text").map((e) => e.text).join("");
+    assert.match(echoed, /\[granted: once\]/);
+    session.close();
+  });
+
+  it("asks the user when the only grant offered is a standing one", async () => {
+    const session = await sessions.open(provider, "/tmp");
+    session.setAutoApprove(true);
+    const asked = askedFor(session);
+    const turn = session.prompt("ask-always-only");
+    const request = await asked;
+    assert.deepEqual(request.options.map((o) => o.optionId), ["always", "no"]);
+    session.resolvePermission(request.requestId, "no");
+    await turn;
+    const echoed = session.eventsSince(0).filter((e) => e.type === "agent_text").map((e) => e.text).join("");
+    assert.match(echoed, /\[granted: no\]/);
+    session.close();
+  });
+});
+
+describe("a permission answer", () => {
+  it("must be one of the options the prompt offered", async () => {
+    const session = await sessions.open(provider, "/tmp");
+    const asked = askedFor(session);
+    const turn = session.prompt("ask-always-first");
+    const request = await asked;
+    assert.throws(() => session.resolvePermission(request.requestId, "made-up"), { code: "MESSAGE_INVALID" });
+    // Still open, and a real answer still lands.
+    session.resolvePermission(request.requestId, "once");
+    await turn;
     const echoed = session.eventsSince(0).filter((e) => e.type === "agent_text").map((e) => e.text).join("");
     assert.match(echoed, /\[granted: once\]/);
     session.close();

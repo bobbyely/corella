@@ -147,13 +147,16 @@ const strings: Field = {
   check: (v) => Array.isArray(v) && v.every((s) => typeof s === "string"),
 };
 const startOptions: Field = {
-  expected: "an object with optional configValues (strings or booleans by id) and opening (a string)",
+  expected:
+    "an object with optional configValues (strings or booleans by id), opening (a string) and autoApprove (a boolean)",
   check: (v) =>
     isRecord(v) &&
     (v["configValues"] === undefined ||
       (isRecord(v["configValues"]) &&
         Object.values(v["configValues"]).every((x) => typeof x === "string" || typeof x === "boolean"))) &&
-    (v["opening"] === undefined || typeof v["opening"] === "string"),
+    (v["opening"] === undefined || typeof v["opening"] === "string") &&
+    // The string "false" is truthy: unchecked, it turned auto-approve on.
+    (v["autoApprove"] === undefined || typeof v["autoApprove"] === "boolean"),
 };
 const elicitationContent: Field = {
   expected: "an object of strings, numbers, booleans or string arrays",

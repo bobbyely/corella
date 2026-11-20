@@ -345,7 +345,8 @@ changed in the building:
 - **Unattended runs need a permission policy on day one, not later.** Every
   agent asks before its first edit, and nobody is there to answer; the plan's
   "park the run" would have meant every run failing at the sixty-minute cap.
-  A per-schedule *auto-approve* switch answers with the first "allow" option.
+  A per-schedule *auto-approve* switch answers with the "allow once" option,
+  and leaves a prompt without one to the user.
   It is off by default and the form says what it means.
 - **Clock time came in with the interval**, because "weekdays at 9" is the
   common ask and the arithmetic is small: `at` is "HH:MM" local, counted from

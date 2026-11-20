@@ -78,6 +78,13 @@ describe("the login token", () => {
     assert.match(set, /SameSite=Strict/);
   });
 
+  it("shows a provider's env names but never its values", async () => {
+    const res = await fetch(`${base}/api/providers`, { headers: cookie() });
+    const text = await res.text();
+    assert.doesNotMatch(text, /sk-secret-value/);
+    assert.deepEqual(JSON.parse(text).providers[0].env, { API_KEY: "(hidden)" });
+  });
+
   it("accepts the cookie, or a Bearer header from a script", async () => {
     assert.equal((await fetch(`${base}/api/providers`, { headers: cookie() })).status, 200);
     assert.equal((await fetch(`${base}/api/providers`, { headers: { authorization: `Bearer ${token}` } })).status, 200);
