@@ -12,6 +12,6 @@
   "dependencies": {
     "@agentclientprotocol/sdk": "1.4.0",
     "@corella/shared": "*",
-    "ws": "8.18.0"
+    "ws": "8.23.0"
   }
 }

@@ -10,12 +10,12 @@
   },
   "dependencies": {
     "@corella/shared": "*",
-    "highlight.js": "11.11.1",
+    "highlight.js": "11.12.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-markdown": "9.0.1",
-    "rehype-highlight": "7.0.1",
-    "remark-gfm": "4.0.0"
+    "rehype-highlight": "7.0.2",
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@types/react": "18.3.12",
