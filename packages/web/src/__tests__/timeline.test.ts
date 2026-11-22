@@ -246,6 +246,13 @@ describe("an adopted conversation", () => {
     assert.deepEqual(rows.map((r) => r.kind), ["error", "user", "agent"]);
   });
 
+  it("keeps the cause on an error row, so the agent's own reason shows", () => {
+    const rows = buildRows([
+      ev({ type: "error", error: { code: "RPC_ERROR", message: "failed", cause: "RequestError: over limit\n    at x" } } as never, 1),
+    ]);
+    assert.equal(rows[0]!.kind === "error" && rows[0]!.cause, "RequestError: over limit\n    at x");
+  });
+
   it("keeps a question asked during a quiet turn, so the turn can be finished", () => {
     const rows = buildRows([
       ev({ type: "user_message", text: "/effort max", quiet: true } as never, 1),

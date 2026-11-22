@@ -53,7 +53,7 @@ export type Row =
     }
   /** Consecutive tool calls and thinking, folded into one collapsible run. */
   | { kind: "work"; seq: number; children: Row[]; tools: number; thoughts: number; active: boolean }
-  | { kind: "error"; seq: number; code: string; message: string; remediation?: string | undefined }
+  | { kind: "error"; seq: number; code: string; message: string; remediation?: string | undefined; cause?: string | undefined }
   | { kind: "divider"; seq: number };
 
 /**
@@ -321,6 +321,7 @@ export function buildRows(all: KcEvent[]): Row[] {
           code: event.error.code,
           message: event.error.message,
           remediation: event.error.remediation,
+          cause: event.error.cause,
         });
         break;
 

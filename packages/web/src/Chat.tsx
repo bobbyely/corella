@@ -645,6 +645,12 @@ const Message = memo(function Message({
         <div className="msg msg-error">
           <span className="code">{row.code}</span> {row.message}
           {row.remediation && <p className="remediation">{row.remediation}</p>}
+          {row.cause && (
+            <details className="details">
+              <summary>{row.cause.split("\n", 1)[0]}</summary>
+              <pre>{row.cause}</pre>
+            </details>
+          )}
         </div>
       );
   }
