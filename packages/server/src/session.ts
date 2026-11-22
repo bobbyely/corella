@@ -9,6 +9,7 @@ import {
   withHandoff,
   type Handoff,
   isKcError,
+  isSlashCommand,
   kcError,
   type KcError,
   type KcEvent,
@@ -60,6 +61,8 @@ interface QueueEntry {
   attachments: Attachment[];
   /** Resolved on the way out, not the way in: an `await` before the push let two prompts reorder. */
   files: Promise<FileMention[]>;
+  /** A setting sent as a slash command: run as a turn, but hidden from the chat. */
+  quiet: boolean;
   promise: Promise<void>;
   resolve: () => void;
 }
@@ -196,6 +199,16 @@ export class Session {
   private autoApprove = false;
   private readonly terminals = new TerminalRegistry();
 
+  /**
+   * A new chat nobody has written in yet. Its agent runs, so the first
+   * message goes at once, but nothing is written to disk: the log is held in
+   * memory and the chat is not listed until a real message promotes it. An
+   * abandoned draft is closed by `SessionManager` and leaves no trace.
+   */
+  private draft = false;
+  /** The turn in flight is a quiet one, which the chat does not show as working. */
+  private quietTurn = false;
+
   private title: string | null = null;
   /** Set once the user renames the chat, so the agent stops renaming it back. */
   private titleLocked = false;
@@ -233,10 +246,12 @@ export class Session {
     store: Store,
     cwdOverride?: string,
     start: StartOptions = {},
+    draft = false,
   ): Promise<Session> {
     // Explicit choice wins, then the provider's pin, then the launch directory.
     const cwd = cwdOverride ?? provider.cwd ?? defaultCwd();
     const session = new Session(id, provider, cwd, store);
+    session.draft = draft;
     // Persist only once the agent is actually up. Recording it first left a
     // phantom conversation in the sidebar whenever a provider failed to start.
     await session.connectOrClose();
@@ -244,10 +259,12 @@ export class Session {
     // Before the opening turn, or its permission prompts are not covered.
     if (typeof start.autoApprove === "boolean") session.setAutoApprove(start.autoApprove);
     session.persistMeta();
-    // The opening message is an ordinary first turn — a slash command for a
-    // setting the agent exposes no other way — and is in the transcript like
-    // anything else sent. Not awaited: anything prompted next queues behind it.
-    if (start.opening?.trim()) void session.prompt(start.opening.trim());
+    // The opening message is an ordinary first turn. One that is only a slash
+    // command is a setting the agent exposes no other way (Kiro's `/effort`),
+    // so it goes quietly: it is in the log, but not shown as said. Not
+    // awaited: anything prompted next queues behind it.
+    const opening = start.opening?.trim();
+    if (opening) void session.prompt(opening, [], [], isSlashCommand(opening));
     return session;
   }
 
@@ -530,11 +547,19 @@ export class Session {
    * A running turn never blocks the composer: further messages join the queue
    * and are sent in order as each turn finishes.
    */
-  async prompt(text: string, images: Array<{ mime: string; data: string }> = [], files: string[] = []): Promise<void> {
+  async prompt(
+    text: string,
+    images: Array<{ mime: string; data: string }> = [],
+    files: string[] = [],
+    quiet = false,
+  ): Promise<void> {
     // Resolves when *this* message's turn ends, not when the queue happens to
     // be idle. Returning early while busy let a scheduled run record success
     // having done nothing, and a room read another turn's text as the reply.
-    const entry: QueueEntry = { text, attachments: this.storeImages(images), files: this.resolveFiles(files), ...deferred() };
+    // Promoted the moment it is sent, not when its turn comes: a browser that
+    // sends and then closes its socket must not have the draft closed under it.
+    if (this.draft && !quiet) this.promote();
+    const entry: QueueEntry = { text, attachments: this.storeImages(images), files: this.resolveFiles(files), quiet, ...deferred() };
     this.queue.push(entry);
     this.notifyState();
     void this.drain();
@@ -549,7 +574,8 @@ export class Session {
    */
   async interrupt(text: string, images: Array<{ mime: string; data: string }> = [], files: string[] = []): Promise<void> {
     if (!this.busy) return this.prompt(text, images, files);
-    const entry: QueueEntry = { text, attachments: this.storeImages(images), files: this.resolveFiles(files), ...deferred() };
+    if (this.draft) this.promote();
+    const entry: QueueEntry = { text, attachments: this.storeImages(images), files: this.resolveFiles(files), quiet: false, ...deferred() };
     this.queue.unshift(entry);
     this.append({ type: "interrupted" });
     this.notifyState();
@@ -597,7 +623,7 @@ export class Session {
         if (next === undefined) return;
         this.notifyState();
         try {
-          await this.runTurn(next.text, next.attachments, await next.files);
+          await this.runTurn(next.text, next.attachments, await next.files, next.quiet);
         } finally {
           next.resolve();
         }
@@ -641,7 +667,12 @@ export class Session {
     return Number.isInteger(index) && index >= 0 && index < this.queue.length;
   }
 
-  private async runTurn(text: string, attachments: Attachment[] = [], files: FileMention[] = []): Promise<void> {
+  private async runTurn(
+    text: string,
+    attachments: Attachment[] = [],
+    files: FileMention[] = [],
+    quiet = false,
+  ): Promise<void> {
     const connection = this.connection;
     const agentSessionId = this.agentSessionId;
     if (!connection || !agentSessionId) {
@@ -650,10 +681,11 @@ export class Session {
     }
 
     this.busy = true;
+    this.quietTurn = quiet;
     this.notifyState();
     // First message names the session, so the list is browsable. Only until the
     // agent sends a title of its own, which is better and supersedes this.
-    if (this.title === null && !this.titleLocked) {
+    if (!quiet && this.title === null && !this.titleLocked) {
       const derived = titleFromMessage(text);
       if (derived) {
         this.title = derived;
@@ -669,6 +701,7 @@ export class Session {
     this.append({
       type: "user_message",
       text,
+      ...(quiet ? { quiet } : {}),
       ...(attachments.length > 0 ? { attachments } : {}),
       ...(files.length > 0 ? { files } : {}),
     });
@@ -712,8 +745,21 @@ export class Session {
       this.append({ type: "turn_end", stopReason: TURN_FAILED });
     } finally {
       this.busy = false;
+      this.quietTurn = false;
       this.notifyState();
     }
+  }
+
+  /** True until something is said in a new chat; see `draft`. */
+  get isDraft(): boolean {
+    return this.draft;
+  }
+
+  /** Something said makes a draft a chat: write what was held, then list it. */
+  private promote(): void {
+    this.draft = false;
+    this.persistMeta();
+    for (const event of this.log) this.store.appendEvent(this.id, event);
   }
 
   /**
@@ -1186,7 +1232,7 @@ export class Session {
     const full = { ...event, seq: ++this.seq, ts: Date.now() } as KcEvent;
     this.log.push(full);
     try {
-      this.store.appendEvent(this.id, full);
+      if (!this.draft) this.store.appendEvent(this.id, full);
     } catch (err) {
       // Never let a write failure take down a live turn; the in-memory log
       // still serves this session. A UNIQUE violation here means two Session
@@ -1204,6 +1250,7 @@ export class Session {
   }
 
   persistMeta(): void {
+    if (this.draft) return;
     const now = Date.now();
     this.store.upsertSession({
       id: this.id,
@@ -1396,25 +1443,35 @@ export class Session {
     return () => this.subscribers.delete(fn);
   }
 
+  private awaitingInput(): boolean {
+    return this.pendingPermissions.size > 0 || this.pendingElicitations.size > 0;
+  }
+
   summary(): SessionSummary {
     return {
       id: this.id,
       providerId: this.provider.id,
       providerName: this.provider.name,
       cwd: this.cwd,
-      busy: this.busy,
+      // A quiet turn is a setting being applied, not the agent at work —
+      // unless it is waiting on a question, when Stop must be there too.
+      busy: this.busy && (!this.quietTurn || this.awaitingInput()),
       lastSeq: this.seq,
       title: this.title,
       live: !this.exited,
       configOptions: this.configOptions,
       autoApprove: this.autoApprove,
-      awaitingInput: this.pendingPermissions.size > 0 || this.pendingElicitations.size > 0,
+      awaitingInput: this.awaitingInput(),
       queued: this.queue.map((q) => q.text),
       archived: false,
       supportsImages: this.supportsImages,
       commands: this.commands,
       scheduleId: this.scheduleId,
       roomId: this.roomId,
+      // Read state lives in the store; SessionManager fills it in for lists.
+      // A summary sent straight from here is for the chat being watched,
+      // which is read by definition.
+      unread: false,
     };
   }
 

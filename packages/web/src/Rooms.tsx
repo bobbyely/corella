@@ -11,6 +11,7 @@ import type { ProviderView, RoomInput, RoomView } from "@corella/shared";
 import { ApiError, createRoom, deleteRoom, fetchRoom, fetchRooms, roomVerb } from "./api.js";
 import { useReadyProviders } from "./useReadyProviders.js";
 import { KSpinner } from "./KSpinner.js";
+import { Icon } from "./icons.js";
 import { MarkdownBody } from "./Markdown.js";
 import { chosen, StartPickers } from "./StartPickers.js";
 import { useChat } from "./useChat.js";
@@ -30,6 +31,8 @@ const EMPTY: RoomInput = {
 };
 
 const describe = (err: unknown) => (err instanceof ApiError ? err.kc.message : String(err));
+/** A participant as a screen reader hears it on their controls: "Critic", or "participant 3" before it has a name. */
+const who = (p: { name: string }, i: number) => p.name.trim() || `participant ${i + 1}`;
 
 /** The list of rooms, and the form for a new one. */
 export function Rooms({ onOpenRoom }: { onOpenRoom: (id: string) => void }) {
@@ -217,20 +220,27 @@ function RoomForm({
         {form.participants.map((p, i) => (
           <div className="room-participant-block" key={i}>
             <div className="room-participant-head">
-              <span className="room-participant-n">{i + 1}</span>
+              <span className="room-participant-n" aria-hidden="true">{i + 1}</span>
               <strong>{p.name || "Unnamed"}</strong>
               <button
                 type="button"
                 className="room-participant-remove"
                 disabled={form.participants.length <= 2}
                 onClick={() => set("participants", form.participants.filter((_, j) => j !== i))}
+                aria-label={`Remove ${who(p, i)}`}
               >
                 Remove
               </button>
             </div>
             <div className="room-participant">
-              <input value={p.name} onChange={(e) => setParticipant(i, { name: e.target.value })} placeholder="Name" />
+              <input
+                value={p.name}
+                onChange={(e) => setParticipant(i, { name: e.target.value })}
+                placeholder="Name"
+                aria-label={`Name of participant ${i + 1}`}
+              />
               <select
+                aria-label={`Agent for ${who(p, i)}`}
                 value={p.providerId}
                 onChange={(e) => setParticipant(i, { providerId: e.target.value, start: {} })}
               >
@@ -240,7 +250,7 @@ function RoomForm({
                   </option>
                 ))}
               </select>
-              <input value={p.role} onChange={(e) => setParticipant(i, { role: e.target.value })} placeholder="Role, one line" />
+              <input value={p.role} onChange={(e) => setParticipant(i, { role: e.target.value })} placeholder="Role, one line" aria-label={`Role of ${who(p, i)}`} />
             </div>
             <StartPickers
               compact
@@ -403,11 +413,12 @@ export function RoomView({
     <div className="chat room">
       <header className="chat-head">
         <button className="head-action" onClick={onBack} title="All rooms">
-          ← Rooms
+          <Icon name="back" size={14} />
+          Rooms
         </button>
         <div className="chat-title">
-          <strong>{room.name}</strong>
-          <code className="cmd">{room.topic}</code>
+          <h1>{room.name}</h1>
+          <p className="chat-sub">{room.topic}</p>
         </div>
         <button
           className={`head-action ${steering ? "active" : ""}`}
@@ -517,15 +528,18 @@ export function RoomView({
 
       {error && <div className="banner">{error}</div>}
 
+      <div className="dock">
       <div className="composer">
+        <div className="composer-box">
         <textarea
           value={draft}
+          aria-label="Message to the room"
           onChange={(e) => onDraft(e.target.value)}
           onKeyDown={onKeyDown}
-          rows={3}
+          rows={2}
           placeholder={busy ? "Typing holds the room; Enter sends, Cmd/Ctrl+Enter cuts in" : "Say something to start a round"}
         />
-        <div className="composer-actions">
+        <div className="composer-bar">
           <div className="composer-config">
             <span className="field-hint">
               {room.status === "held" && "Held — the room waits for you."}
@@ -534,18 +548,20 @@ export function RoomView({
             </span>
           </div>
           <div className="composer-buttons">
-            {busy && <button onClick={() => verb("stop")}>Stop</button>}
-            {!busy && room.messages.length > 0 && <button onClick={() => verb("resume")}>Continue</button>}
+            {busy && <button className="plain" onClick={() => verb("stop")}>Stop</button>}
+            {!busy && room.messages.length > 0 && <button className="plain" onClick={() => verb("resume")}>Continue</button>}
             {busy && speaking && (
-              <button onClick={() => send(true)} disabled={!draft.trim()} title="Cancel the turn in progress and send now">
+              <button className="plain" onClick={() => send(true)} disabled={!draft.trim()} title="Cancel the turn in progress and send now">
                 Cut in
               </button>
             )}
-            <button className="primary" onClick={() => send(false)} disabled={!draft.trim() || sending}>
-              Send
+            <button className="hw hot send" onClick={() => send(false)} disabled={!draft.trim() || sending} aria-label="Send" title="Send (Enter)">
+              <Icon name="send" size={18} />
             </button>
           </div>
         </div>
+        </div>
+      </div>
       </div>
     </div>
   );

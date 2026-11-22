@@ -77,6 +77,8 @@ export interface ProviderCheckResult {
 
 export interface ProviderView extends ProviderConfig {
   lastCheck: ProviderCheckResult | null;
+  /** Its automatic check is running now; `lastCheck` is the one before. */
+  checking?: boolean;
   /**
    * What a new conversation on this provider starts with unless changed: the
    * picker values and opening command last used, on the new-chat page or in
@@ -93,6 +95,19 @@ export type HostPlatform = "darwin" | "linux" | "win32" | "other";
 export interface ProvidersResponse {
   providers: ProviderView[];
   platform: HostPlatform;
+}
+
+/**
+ * App-wide switches from the Settings page, kept by the server so every tab
+ * and window agrees. `GET /api/settings` returns them; `PATCH` changes some.
+ */
+export interface AppSettings {
+  /**
+   * New chats start with Auto-approve on: the agent's permission prompts are
+   * answered "allow once" without asking. Off on a new install. Each chat's
+   * own checkbox still overrides it.
+   */
+  autoApproveNewChats: boolean;
 }
 
 export interface UpdateProviderRequest {

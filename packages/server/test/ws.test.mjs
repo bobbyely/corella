@@ -114,4 +114,42 @@ describe("a socket", () => {
       second.close();
     }
   });
+
+  it("starts a new chat with the Settings page's Auto-approve, which the chat can still turn off", async () => {
+    const c = await client();
+    /** Opens a chat over the socket and waits for its summary. */
+    const open = async (start) => {
+      const before = c.frames.length;
+      c.send({ type: "open", providerId: "mock", cwd: "/tmp", ...(start ? { start } : {}) });
+      for (let i = 0; i < 100 && !c.frames.slice(before).some((f) => f.type === "session_opened"); i++) await c.settle();
+      return c.frames.slice(before).find((f) => f.type === "session_opened").session;
+    };
+    const opened = [];
+    try {
+      assert.equal(store.settings().autoApproveNewChats, false, "a new install asks before every action");
+      const plain = await open();
+      opened.push(plain.id);
+      assert.equal(plain.autoApprove, false);
+
+      store.updateSettings({ autoApproveNewChats: true });
+      const trusted = await open();
+      opened.push(trusted.id);
+      assert.equal(trusted.autoApprove, true, "with the setting on, a new chat starts auto-approving");
+
+      // The chat's own checkbox overrides it, for that chat only.
+      c.send({ type: "set_auto_approve", sessionId: trusted.id, enabled: false });
+      await c.settle();
+      assert.equal(sessions.getLive(trusted.id).summary().autoApprove, false);
+      assert.equal(store.settings().autoApproveNewChats, true);
+
+      // A start that says for itself (a form, a schedule) is not overruled.
+      const explicit = await open({ autoApprove: false });
+      opened.push(explicit.id);
+      assert.equal(explicit.autoApprove, false);
+    } finally {
+      store.updateSettings({ autoApproveNewChats: false });
+      for (const id of opened) sessions.getLive(id)?.close();
+      c.close();
+    }
+  });
 });

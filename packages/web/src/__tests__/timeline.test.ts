@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { KcEvent } from "@corella/shared";
 import { latestUsage } from "@corella/shared";
-import { buildRows, languageFor, toolContent, toolSubtitle } from "../timeline.ts";
+import { FOLD_AFTER, buildRows, clockLabel, currentTurnStart, languageFor, openAskKeys, toolContent, toolSubtitle, turnTimes } from "../timeline.ts";
 
 const ev = (e: Partial<KcEvent> & { type: KcEvent["type"] }, seq: number): KcEvent =>
   ({ seq, ts: 0, ...e }) as KcEvent;
@@ -35,27 +35,29 @@ describe("buildRows", () => {
     assert.equal(toolRow.details.length, 3);
   });
 
-  it("groups consecutive tool calls but never across an answer", () => {
+  const run = (from: number, n: number, status = "completed") =>
+    Array.from({ length: n }, (_, i) => tool(from + i, `t${from + i}`, status));
+
+  it("folds a long run of tool calls but never across an answer", () => {
+    const n = FOLD_AFTER + 1;
     const rows = buildRows([
-      tool(1, "a", "completed"),
-      tool(2, "b", "completed"),
-      ev({ type: "agent_text", text: "mid" } as never, 3),
-      tool(4, "c", "completed"),
-      tool(5, "d", "completed"),
+      ...run(1, n),
+      ev({ type: "agent_text", text: "mid" } as never, 100),
+      ...run(101, n),
     ]);
     const groups = rows.filter((r) => r.kind === "work");
     assert.equal(groups.length, 2, "the answer between them must split the groups");
-    assert.deepEqual(groups.map((g) => g.kind === "work" && g.tools), [2, 2]);
+    assert.deepEqual(groups.map((g) => g.kind === "work" && g.tools), [n, n]);
   });
 
-  it("leaves a lone tool call ungrouped", () => {
-    const rows = buildRows([tool(1, "a", "completed"), ev({ type: "agent_text", text: "x" } as never, 2)]);
+  it("leaves a short run as one line per step, so each keeps its time", () => {
+    const rows = buildRows([...run(1, FOLD_AFTER), ev({ type: "agent_text", text: "x" } as never, 100)]);
     assert.equal(rows.filter((r) => r.kind === "work").length, 0);
-    assert.equal(rows.filter((r) => r.kind === "tool").length, 1);
+    assert.equal(rows.filter((r) => r.kind === "tool").length, FOLD_AFTER);
   });
 
   it("reports a group as active while any tool is unfinished", () => {
-    const rows = buildRows([tool(1, "a", "completed"), tool(2, "b", "in_progress")]);
+    const rows = buildRows([...run(1, FOLD_AFTER), tool(50, "b", "in_progress")]);
     const group = rows.find((r) => r.kind === "work");
     assert.ok(group && group.kind === "work" && group.active);
   });
@@ -230,6 +232,32 @@ describe("an adopted conversation", () => {
     assert.deepEqual(rows.map((r) => r.kind), ["command", "user", "user", "user"]);
     assert.equal(rows[0]!.kind === "command" && rows[0]!.text, "/effort high");
   });
+
+  it("hides a quiet command and the agent's answer to it, but not an error", () => {
+    const rows = buildRows([
+      ev({ type: "user_message", text: "/effort max", quiet: true } as never, 1),
+      ev({ type: "turn_start" } as never, 2),
+      ev({ type: "agent_text", text: "Effort set to max" } as never, 3),
+      ev({ type: "error", error: { code: "RPC_ERROR", message: "nope" } } as never, 4),
+      ev({ type: "turn_end", stopReason: "end_turn" } as never, 5),
+      ev({ type: "user_message", text: "fix the parser" } as never, 6),
+      ev({ type: "agent_text", text: "Fixed" } as never, 7),
+    ]);
+    assert.deepEqual(rows.map((r) => r.kind), ["error", "user", "agent"]);
+  });
+
+  it("keeps a question asked during a quiet turn, so the turn can be finished", () => {
+    const rows = buildRows([
+      ev({ type: "user_message", text: "/effort max", quiet: true } as never, 1),
+      ev({ type: "permission_request", requestId: "p1", title: "Allow?", options: [] } as never, 2),
+      ev({ type: "permission_resolved", requestId: "p1", optionId: "yes", outcome: "selected" } as never, 3),
+      ev({ type: "elicitation_request", requestId: "e1", message: "Which?", fields: [] } as never, 4),
+      ev({ type: "agent_text", text: "Effort set to max" } as never, 5),
+      ev({ type: "turn_end", stopReason: "end_turn" } as never, 6),
+    ]);
+    assert.deepEqual(rows.map((r) => r.kind), ["permission", "elicitation"]);
+    assert.equal(rows[0]!.kind === "permission" && rows[0]!.answeredWith, "yes", "and its answer");
+  });
 });
 
 describe("languageFor", () => {
@@ -244,5 +272,49 @@ describe("languageFor", () => {
     for (const name of ["x.constructor", "x.__proto__", "x.toString", "x.hasOwnProperty"]) {
       assert.equal(languageFor(name), "", name);
     }
+  });
+});
+
+describe("the running sheet's clock", () => {
+  const at = (type: string, seq: number, ts: number, extra = {}) => ({ seq, ts, type, ...extra }) as unknown as KcEvent;
+
+  it("times each step from the start of its turn, and leaves the gaps between turns untimed", () => {
+    const events = [
+      at("user_message", 1, 10_000, { text: "go" }),
+      at("turn_start", 2, 10_200),
+      at("agent_text", 3, 13_000, { text: "ok" }),
+      at("turn_end", 4, 35_400, { stopReason: "end_turn" }),
+      at("agent_update", 5, 40_000, { update: {} }),
+      at("turn_start", 6, 50_000),
+      at("agent_text", 7, 51_000, { text: "again" }),
+    ];
+    const times = turnTimes(events);
+    assert.equal(times.get(1), 0);
+    assert.equal(times.get(3), 3_000);
+    assert.equal(times.get(4), 25_400);
+    assert.equal(times.has(5), false);
+    assert.equal(times.get(7), 1_000);
+    assert.equal(currentTurnStart(events), 50_000);
+    assert.equal(currentTurnStart(events.slice(0, 5)), null);
+  });
+
+  it("labels as minutes and seconds, adding hours only past one", () => {
+    assert.equal(clockLabel(0), "00:00");
+    assert.equal(clockLabel(25_900), "00:25");
+    assert.equal(clockLabel(61_000), "01:01");
+    assert.equal(clockLabel(3_727_000), "1:02:07");
+    assert.equal(clockLabel(-5), "00:00");
+  });
+});
+
+describe("openAskKeys", () => {
+  it("gives one key per open question, so a second question is news, and drops answered ones", () => {
+    const rows = buildRows([
+      ev({ type: "user_message", text: "/effort max", quiet: true } as never, 1),
+      ev({ type: "permission_request", requestId: "p1", title: "Allow?", options: [] } as never, 2),
+      ev({ type: "permission_request", requestId: "p2", title: "And this?", options: [] } as never, 3),
+      ev({ type: "permission_resolved", requestId: "p1", optionId: "yes", outcome: "selected" } as never, 4),
+    ]);
+    assert.equal(openAskKeys("draft-1", rows), "draft-1:p2", "a quiet opening's question in a draft counts");
   });
 });

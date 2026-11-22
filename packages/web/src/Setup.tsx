@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { CHECK_STAGES } from "@corella/shared";
 import type { CheckStage, HostPlatform, KcError, ProviderCheckResult, ProviderView } from "@corella/shared";
-import { ApiError, fetchProviders, runCheck, updateProvider } from "./api.js";
+import { ApiError, fetchProviders, fetchSettings, runCheck, updateProvider, updateSettings } from "./api.js";
 import { cardStatus, isReady } from "./providerStatus.js";
-import { applyTheme, effectiveTheme, loadTheme, type Theme } from "./theme.js";
+import { applyRawPayloads, applyTheme, loadRawPayloads, loadTheme, resolveTheme, THEMES, type Theme } from "./theme.js";
 
 export function Setup() {
   const [providers, setProviders] = useState<ProviderView[] | null>(null);
@@ -32,6 +32,14 @@ export function Setup() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Agents are checked automatically; ask again until those checks are done.
+  const autoChecking = providers?.some((p) => p.checking) ?? false;
+  useEffect(() => {
+    if (!autoChecking) return;
+    const id = window.setTimeout(() => void load(), 1_000);
+    return () => window.clearTimeout(id);
+  }, [autoChecking, providers, load]);
 
   const check = useCallback(async (id: string) => {
     setRunning((prev) => new Set(prev).add(id));
@@ -62,10 +70,10 @@ export function Setup() {
   return (
     <div className="page">
       <header className="header">
-        <h1>Setup</h1>
+        <h1>Settings</h1>
         <p className="subtitle">
-          Verify each agent before you rely on it. A provider must pass every rung before it can
-          be used for a new chat.
+          Each agent is checked when Corella starts and when its command changes, and must pass
+          every rung before a new chat can use it. Check again here to see why one fails.
         </p>
         {providers && (
           <p className="tally">
@@ -77,8 +85,10 @@ export function Setup() {
       {loadError && <div className="banner">{loadError}</div>}
 
       <ThemePicker />
+      <ChatSettings />
       <Shortcuts />
 
+      <h2 className="section-label rule-label agents-label">Agents</h2>
       {!providers && !loadError && <p className="muted">Loading providers…</p>}
 
       <div className="cards">
@@ -86,7 +96,7 @@ export function Setup() {
           <ProviderCard
             key={provider.id}
             provider={provider}
-            running={running.has(provider.id)}
+            running={running.has(provider.id) || provider.checking === true}
             checkError={checkErrors[provider.id] ?? null}
             platform={platform}
             onCheck={() => void check(provider.id)}
@@ -99,15 +109,77 @@ export function Setup() {
 }
 
 /**
- * A switch rather than three buttons.
- *
- * "System" is still honoured — it is simply the starting state rather than a
- * third position. Flicking the switch makes an explicit choice; "follow system"
- * hands control back, and only appears once there is something to hand back.
+ * Switches for every chat. Auto-approve is the server's, so every tab agrees;
+ * raw payloads is this browser's, like the theme.
+ */
+function ChatSettings() {
+  const [autoApprove, setAutoApprove] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [raw, setRaw] = useState(loadRawPayloads);
+
+  useEffect(() => {
+    fetchSettings()
+      .then((s) => setAutoApprove(s.autoApproveNewChats))
+      .catch((err: unknown) => setError(err instanceof ApiError ? err.kc.message : String(err)));
+  }, []);
+
+  const changeAutoApprove = (on: boolean) => {
+    setAutoApprove(on);
+    setError(null);
+    updateSettings({ autoApproveNewChats: on })
+      .then((s) => setAutoApprove(s.autoApproveNewChats))
+      .catch((err: unknown) => {
+        setAutoApprove(!on);
+        setError(err instanceof ApiError ? err.kc.message : String(err));
+      });
+  };
+
+  return (
+    <section className="theme">
+      <h2 className="section-label rule-label">Chats</h2>
+      <label className="setting">
+        <input
+          type="checkbox"
+          checked={autoApprove === true}
+          disabled={autoApprove === null}
+          onChange={(e) => changeAutoApprove(e.target.checked)}
+        />
+        <span className="setting-name">Auto-approve new chats</span>
+        <span className="setting-note">
+          Each new chat starts with Auto-approve on: the agent runs commands and edits files without asking.
+          It only ever allows once, and its questions still wait for you. Turn it off for one chat with the
+          checkbox under the message box.
+        </span>
+      </label>
+      <label className="setting">
+        <input
+          type="checkbox"
+          checked={raw}
+          onChange={(e) => {
+            setRaw(e.target.checked);
+            applyRawPayloads(e.target.checked);
+          }}
+        />
+        <span className="setting-name">Show raw payloads</span>
+        <span className="setting-note">The agent's own JSON under each tool step. For debugging an agent.</span>
+      </label>
+      {error && <p className="remediation">{error}</p>}
+    </section>
+  );
+}
+
+const THEME_CHOICES: Array<{ id: Theme; name: string; note: string }> = [
+  ...THEMES,
+  { id: "system", name: "System", note: "Cream or Studio, following your computer's light or dark setting." },
+];
+
+/**
+ * One radio per theme, each with a swatch of its own ground, text and lamp.
+ * The swatch carries `data-theme`, so it shows the theme's real tokens rather
+ * than a second copy of them.
  */
 function ThemePicker() {
   const [theme, setTheme] = useState<Theme>(loadTheme);
-  const dark = effectiveTheme(theme) === "dark";
 
   const choose = (next: Theme) => {
     setTheme(next);
@@ -116,27 +188,25 @@ function ThemePicker() {
 
   return (
     <section className="theme">
-      <h2 className="section-label">Appearance</h2>
-      <div className="theme-row">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={dark}
-          aria-label="Dark mode"
-          className={`switch ${dark ? "on" : ""}`}
-          onClick={() => choose(dark ? "light" : "dark")}
-        >
-          <span className="switch-track">
-            <span className="switch-knob" />
-          </span>
-          <span className="switch-label">{dark ? "Dark" : "Light"}</span>
-        </button>
-
-        {theme !== "system" && (
-          <button className="setup-link" onClick={() => choose("system")}>
-            Follow system
-          </button>
-        )}
+      <h2 className="section-label rule-label">Appearance</h2>
+      <div className="theme-choices" role="radiogroup" aria-label="Theme">
+        {THEME_CHOICES.map((choice) => (
+          <label key={choice.id} className={`theme-choice ${theme === choice.id ? "on" : ""}`}>
+            <input
+              type="radio"
+              name="theme"
+              value={choice.id}
+              checked={theme === choice.id}
+              onChange={() => choose(choice.id)}
+            />
+            <span className="theme-swatch" data-theme={resolveTheme(choice.id)} aria-hidden="true">
+              <i />
+              <i />
+            </span>
+            <span className="theme-name">{choice.name}</span>
+            <span className="theme-note">{choice.note}</span>
+          </label>
+        ))}
       </div>
     </section>
   );
@@ -223,15 +293,15 @@ function CommandHelp({
 
 const SHORTCUTS: Array<[string, string]> = [
   ["⌘/Ctrl + K", "Search conversations"],
-  ["⌘/Ctrl + ⇧ + O", "New chat"],
+  ["⌘/Ctrl + Shift + O", "New chat"],
   ["Alt + ↑ / ↓", "Previous / next conversation"],
-  ["Enter", "Send · ⇧ Enter for a newline"],
+  ["Enter", "Send · Shift + Enter for a newline"],
 ];
 
 function Shortcuts() {
   return (
     <section className="theme">
-      <h2 className="section-label">Keyboard</h2>
+      <h2 className="section-label rule-label">Keyboard</h2>
       <dl className="shortcuts">
         {SHORTCUTS.map(([keys, what]) => (
           <div key={keys}>

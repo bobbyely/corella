@@ -1,5 +1,6 @@
 import type {
   AgentSessionsResponse,
+  AppSettings,
   CheckResponse,
   FileContent,
   FilesResponse,
@@ -32,6 +33,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const fetchProviders = () => request<ProvidersResponse>("/api/providers");
+
+export const fetchSettings = () => request<AppSettings>("/api/settings");
+
+export const updateSettings = (patch: Partial<AppSettings>) =>
+  request<AppSettings>("/api/settings", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(patch),
+  });
 
 export const updateProvider = (id: string, patch: { command?: string; args?: string[] }) =>
   request<{ ok: true }>(`/api/providers/${encodeURIComponent(id)}`, {

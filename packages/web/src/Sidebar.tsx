@@ -1,13 +1,18 @@
-import { useEffect, useImperativeHandle, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
+import { ResizeHandle } from "./ResizeHandle.js";
+import { AgentConversationsSection, type AdoptTarget } from "./AgentConversations.js";
 import type { RoomView, ScheduleRun, ScheduleView, SessionSummary } from "@corella/shared";
 import { fetchRooms, fetchSchedules } from "./api.js";
 import { GamesPanel } from "./games/Games.js";
+import { CueMark, Icon } from "./icons.js";
 import { useChat } from "./useChat.js";
+import { sameDay, shortAge } from "./when.js";
 
 const WIDTH_KEY = "kc.sidebar.width";
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 520;
-const DEFAULT_WIDTH = 264;
+const DEFAULT_WIDTH = 300;
 const clampWidth = (w: number) => Math.round(Math.min(Math.max(w, MIN_WIDTH), MAX_WIDTH));
 
 function loadWidth(): number {
@@ -19,15 +24,24 @@ function loadWidth(): number {
   }
 }
 
-/** Persistent left rail: new chat, past conversations, a way into Setup, and the games. */
-interface SidebarApi {
+/** The keys printed on New chat and Search, as this platform spells them. */
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+// "Shift" in words: the self-hosted fonts have no ⇧, so it fell back to another face.
+const NEW_CHAT_KEYS = IS_MAC ? "⌘ Shift O" : "Ctrl Shift O";
+const SEARCH_KEYS = IS_MAC ? "⌘K" : "Ctrl K";
+
+/** Persistent left rail: new chat, past conversations, Schedules, Rooms, Settings, and the games. */
+export interface SidebarApi {
   focusSearch: () => void;
   step: (delta: number) => void;
+  /** Opens the word games: the chat's ··· menu asks for them through here. */
+  play: () => void;
 }
 
 export function Sidebar({
   api,
   listVersion,
+  asking = "",
   activeSessionId,
   onNewChat,
   onOpenSession,
@@ -41,9 +55,12 @@ export function Sidebar({
   roomsActive,
   onOpenRoom,
   activeRoomId,
+  onAdopt,
 }: {
   api: RefObject<SidebarApi | null>;
   listVersion: number;
+  /** The open questions in the chat on screen (see `Chat`'s `onAsking`). */
+  asking?: string;
   activeSessionId?: string | undefined;
   onNewChat: () => void;
   onOpenSession: (id: string) => void;
@@ -57,15 +74,49 @@ export function Sidebar({
   roomsActive: boolean;
   onOpenRoom: (id: string) => void;
   activeRoomId?: string | undefined;
+  /** Opens a conversation started in the agent's own CLI, found under Search. */
+  onAdopt: (providerId: string, target: AdoptTarget) => void;
 }) {
   const { connected, sessions, listSessions, renameSession, archiveSession, search, searchHits } =
     useChat();
   const [renaming, setRenaming] = useState<string | null>(null);
   // The games live here rather than in Chat because this rail is on every
   // screen, and it already knows which conversation is waiting on the user.
-  // They are positioned fixed, so where they render makes no visual difference.
+  // They render into the body, not here: on a narrow screen this rail is
+  // transformed off screen, and a fixed panel inside it would go with it.
   const [playing, setPlaying] = useState(false);
-  const awaitingInput = sessions?.some((s) => s.awaitingInput) ?? false;
+  // Everything waiting on the user: listed chats, and the chat on screen's
+  // own questions, which covers a new chat the list leaves out.
+  const waitingKeys = [...(sessions ?? []).filter((s) => s.awaitingInput).map((s) => s.id), ...asking.split(" ")]
+    .filter(Boolean)
+    .join(" ");
+  const awaitingInput = waitingKeys !== "";
+  // On a phone the games are a sheet over the chat, so over a prompt's keys:
+  // it gives way each time something new asks, not only the first time. The
+  // same width as the sheet's CSS.
+  const seenWaiting = useRef(new Set<string>());
+  useEffect(() => {
+    const now = new Set(waitingKeys.split(" ").filter(Boolean));
+    const fresh = [...now].some((k) => !seenWaiting.current.has(k));
+    seenWaiting.current = now;
+    if (fresh && window.matchMedia("(max-width: 860px)").matches) setPlaying(false);
+  }, [waitingKeys]);
+
+  // A chat that needs you, while you are looking at another tab or chat: the
+  // count in the tab's title, and one polite announcement per chat as it cues.
+  const cued = (sessions ?? []).filter((s) => s.awaitingInput);
+  const cuedIds = cued.map((s) => s.id).join(" ");
+  useEffect(() => {
+    document.title = cued.length ? `▲ ${cued.length} · Corella` : "Corella";
+  }, [cued.length]);
+  const announced = useRef(new Set<string>());
+  const [announcement, setAnnouncement] = useState("");
+  useEffect(() => {
+    const fresh = cued.filter((s) => !announced.current.has(s.id));
+    announced.current = new Set(cued.map((s) => s.id));
+    if (fresh.length) setAnnouncement(fresh.map((s) => `${s.title ?? "Untitled"} needs you`).join(". "));
+    // Keyed on the ids: a list refetch with the same chats cued says nothing new.
+  }, [cuedIds]);
 
   // Drag the right edge to resize. The width is a per-browser convenience,
   // like the theme, and the shell reads it from a CSS variable.
@@ -73,31 +124,21 @@ export function Sidebar({
   useEffect(() => {
     document.documentElement.style.setProperty("--sidebar-width", `${width}px`);
   }, [width]);
-  const startResize = (e: PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const handle = e.currentTarget;
-    handle.setPointerCapture(e.pointerId);
-    const onMove = (ev: globalThis.PointerEvent) => setWidth(clampWidth(ev.clientX));
-    const onUp = () => {
-      handle.removeEventListener("pointermove", onMove);
-      handle.removeEventListener("pointerup", onUp);
-      setWidth((w) => {
-        try {
-          localStorage.setItem(WIDTH_KEY, String(w));
-        } catch {
-          // Then it is simply not remembered.
-        }
-        return w;
-      });
-    };
-    handle.addEventListener("pointermove", onMove);
-    handle.addEventListener("pointerup", onUp);
-  };
+  const keepWidth = () =>
+    setWidth((w) => {
+      try {
+        localStorage.setItem(WIDTH_KEY, String(w));
+      } catch {
+        // Then it is simply not remembered.
+      }
+      return w;
+    });
   const [showArchived, setShowArchived] = useState(false);
   const [query, setQuery] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
 
   useImperativeHandle(api, () => ({
+    play: () => setPlaying(true),
     focusSearch: () => searchInput.current?.select(),
     step: (delta: number) => {
       if (!sessions || sessions.length === 0) return;
@@ -145,6 +186,15 @@ export function Sidebar({
     };
   }, [sessions]);
 
+  // Re-read once a minute, so "now" becomes "1 min" without a new list.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const today = own.filter((s) => s.updatedAt === undefined || sameDay(s.updatedAt, now));
+  const earlier = own.filter((s) => s.updatedAt !== undefined && !sameDay(s.updatedAt, now));
+
   const renderItem = (session: SessionSummary) =>
     renaming === session.id ? (
       <RenameField
@@ -159,7 +209,7 @@ export function Sidebar({
     ) : (
       <div
         key={session.id}
-        className={`sidebar-item ${session.id === activeSessionId ? "active" : ""} ${
+        className={`sidebar-item state-${chatState(session)} ${session.id === activeSessionId ? "active" : ""} ${
           session.archived ? "archived" : ""
         }`}
       >
@@ -168,60 +218,79 @@ export function Sidebar({
           onClick={() => onOpenSession(session.id)}
           onDoubleClick={() => setRenaming(session.id)}
           title={session.title ?? "Untitled"}
+          aria-current={session.id === activeSessionId ? "page" : undefined}
         >
-          <span className="sidebar-item-title">
-            <StatusIcon session={session} />
-            {session.title ?? "Untitled"}
+          <span className="sidebar-mark">
+            <StateTag state={chatState(session)} />
           </span>
-          <span className="sidebar-item-sub">{session.providerName}</span>
+          <span className="sidebar-item-title">{session.title ?? "Untitled"}</span>
+          <span className="sidebar-item-time">{session.updatedAt !== undefined ? shortAge(session.updatedAt, now) : ""}</span>
+          <span className="sidebar-item-sub">{STATE_NOTE[chatState(session)] ?? session.providerName}</span>
         </button>
-        <button
-          className="sidebar-action"
-          title="Rename"
-          aria-label={`Rename ${session.title ?? "conversation"}`}
-          onClick={() => setRenaming(session.id)}
-        >
-          ✎
-        </button>
-        <button
-          className="sidebar-action"
-          title={session.archived ? "Restore" : "Archive"}
-          aria-label={`${session.archived ? "Restore" : "Archive"} ${session.title ?? "conversation"}`}
-          onClick={() => archiveSession(session.id, !session.archived)}
-        >
-          {session.archived ? "⤺" : "⌸"}
-        </button>
+        <span className="sidebar-actions">
+          <button
+            className="sidebar-action"
+            title="Rename"
+            aria-label={`Rename ${session.title ?? "conversation"}`}
+            onClick={() => setRenaming(session.id)}
+          >
+            <Icon name="edit" size={14} />
+          </button>
+          <button
+            className="sidebar-action"
+            title={session.archived ? "Restore" : "Archive"}
+            aria-label={`${session.archived ? "Restore" : "Archive"} ${session.title ?? "conversation"}`}
+            onClick={() => archiveSession(session.id, !session.archived)}
+          >
+            <Icon name={session.archived ? "back" : "archive"} size={14} />
+          </button>
+        </span>
       </div>
     );
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-resize" onPointerDown={startResize} title="Drag to resize" />
+      <ResizeHandle
+        className="sidebar-resize"
+        label="Sidebar width"
+        width={width}
+        min={MIN_WIDTH}
+        max={MAX_WIDTH}
+        grow={1}
+        fromPointer={(x) => x}
+        onChange={(w) => setWidth(clampWidth(w))}
+        onCommit={keepWidth}
+      />
       <div className="sidebar-head">
         <span className="brand">Corella</span>
       </div>
 
-      <button className="new-chat" onClick={onNewChat}>
-        <span className="plus">+</span> New chat
+      <button className="hw wide new-chat" onClick={onNewChat}>
+        <Icon name="plus" />
+        New chat
+        <kbd aria-label={`Shortcut ${NEW_CHAT_KEYS}`}>{NEW_CHAT_KEYS}</kbd>
       </button>
 
-      <div className="sidebar-search">
+      <label className="sidebar-search">
+        <Icon name="search" />
         <input
           ref={searchInput}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search conversations"
+          placeholder="Search"
           aria-label="Search conversations"
         />
-        {searching && (
+        {searching ? (
           <button className="search-clear" onClick={() => setQuery("")} aria-label="Clear search">
-            ×
+            <Icon name="cross" size={14} />
           </button>
+        ) : (
+          <kbd>{SEARCH_KEYS}</kbd>
         )}
-      </div>
+      </label>
 
       {searching ? (
-        <nav className="sidebar-list">
+        <nav className="sidebar-list" aria-label="Search results">
           {searchHits?.length === 0 && <p className="sidebar-empty">No matches.</p>}
           {searchHits?.map((hit) => (
             <button key={hit.sessionId} className="search-hit" onClick={() => onOpenSession(hit.sessionId)}>
@@ -229,31 +298,33 @@ export function Sidebar({
               <Snippet text={hit.snippet} />
             </button>
           ))}
+          <AgentConversationsSection query={query} onAdopt={onAdopt} onOpenSession={onOpenSession} />
         </nav>
       ) : (
-      <nav className="sidebar-list">
-        {/* Each kind of thing folds, so a long list of one does not push the
+      <nav className="sidebar-list" aria-label="Chats">
+        <h2 className="rule-label">{showArchived ? "Archived and today" : "Today"}</h2>
+        {today.length === 0 && (
+          <p className="sidebar-empty">{own.length === 0 ? (showArchived ? "Nothing here." : "No chats yet.") : "Nothing yet today."}</p>
+        )}
+        {today.map(renderItem)}
+        {earlier.length > 0 && (
+          <>
+            <h2 className="rule-label">Earlier</h2>
+            {earlier.map(renderItem)}
+          </>
+        )}
+        {/* Rooms and schedules fold, so a long list of one does not push the
             others off the bottom; the list as a whole scrolls. */}
-        <details className="sidebar-group" open>
-          <summary>Conversations ({own.length})</summary>
-          {own.length === 0 && (
-            <p className="sidebar-empty">{showArchived ? "Nothing here." : "No conversations yet."}</p>
-          )}
-          {own.map(renderItem)}
-        </details>
         {rooms.length > 0 && (
           <details className="sidebar-group" open>
-            <summary>Rooms ({rooms.length})</summary>
+            <summary className="rule-label">Rooms</summary>
             {rooms.map((room) => (
               <div key={room.id} className={`sidebar-item ${room.id === activeRoomId ? "active" : ""}`}>
                 <button className="sidebar-item-main" onClick={() => onOpenRoom(room.id)} title={room.topic}>
-                  <span className="sidebar-item-title">
-                    <span
-                      className={`status ${room.status === "running" ? "status-working" : room.status === "held" ? "status-input" : "status-idle"}`}
-                      aria-label={room.status}
-                    />
-                    {room.name}
+                  <span className="sidebar-mark">
+                    <StateTag state={room.status === "running" ? "onair" : room.status === "held" ? "cue" : "ready"} />
                   </span>
+                  <span className="sidebar-item-title">{room.name}</span>
                   <span className="sidebar-item-sub">{room.participants.map((p) => p.name).join(", ")}</span>
                 </button>
               </div>
@@ -262,22 +333,17 @@ export function Sidebar({
         )}
         {schedules.length > 0 && (
           <details className="sidebar-group" open>
-            <summary>
-              Schedules ({schedules.length})
-              {schedules.some((s) => s.runs[0]?.unread) && (
-                <span className="status status-unread" aria-label="Unread runs" />
-              )}
-            </summary>
+            <summary className="rule-label">Schedules</summary>
             {schedules.map((schedule) => (
               <div
                 key={schedule.id}
                 className={`sidebar-item ${schedule.id === activeScheduleId ? "active" : ""}`}
               >
                 <button className="sidebar-item-main" onClick={() => onOpenSchedule(schedule.id)} title={schedule.name}>
-                  <span className="sidebar-item-title">
-                    <RunIcon run={schedule.runs[0]} />
-                    {schedule.name}
+                  <span className="sidebar-mark">
+                    <StateTag state={runState(schedule.runs[0])} />
                   </span>
+                  <span className="sidebar-item-title">{schedule.name}</span>
                   <span className="sidebar-item-sub">
                     {schedule.runs.length} run{schedule.runs.length === 1 ? "" : "s"}
                     {schedule.status === "paused" && " · paused"}
@@ -287,68 +353,119 @@ export function Sidebar({
             ))}
           </details>
         )}
+        <button
+          className={`archived-toggle ${showArchived ? "active" : ""}`}
+          onClick={() => setShowArchived((v) => !v)}
+          aria-pressed={showArchived}
+          title="Archived chats are hidden from this list"
+        >
+          {showArchived ? "Hide archived chats" : "Show archived chats"}
+        </button>
       </nav>
       )}
 
       <div className="sidebar-foot">
-        <button className={`setup-link ${setupActive ? "active" : ""}`} onClick={onOpenSetup}>
-          Setup
-        </button>
-        <button className={`setup-link ${schedulesActive ? "active" : ""}`} onClick={onOpenSchedules}>
+        <button className={`foot-link ${schedulesActive ? "active" : ""}`} onClick={onOpenSchedules} aria-current={schedulesActive ? "page" : undefined}>
+          <Icon name="clock" />
           Schedules
         </button>
-        <button className={`setup-link ${roomsActive ? "active" : ""}`} onClick={onOpenRooms}>
+        <button className={`foot-link ${roomsActive ? "active" : ""}`} onClick={onOpenRooms} aria-current={roomsActive ? "page" : undefined}>
+          <Icon name="rooms" />
           Rooms
         </button>
-        <button
-          className={`setup-link ${showArchived ? "active" : ""}`}
-          onClick={() => setShowArchived((v) => !v)}
-          title="Archived conversations are hidden from this list"
-        >
-          {showArchived ? "Hide archived" : "Archived"}
+        <button className={`foot-link ${setupActive ? "active" : ""}`} onClick={onOpenSetup} aria-current={setupActive ? "page" : undefined}>
+          <Icon name="gear" />
+          Settings
         </button>
-        <span className={`dot ${connected ? "dot-ok" : "dot-off"}`} title={connected ? "Connected" : "Disconnected"} />
+        <span
+          className={`dot ${connected ? "dot-ok" : "dot-off"}`}
+          role="img"
+          aria-label={connected ? "Connected" : "Reconnecting"}
+          title={connected ? "Connected to the Corella server" : "Reconnecting to the Corella server…"}
+        />
       </div>
-      {/* Hidden while an agent waits on an answer: the opener floats over the
-          chat and can cover a permission prompt's buttons. */}
-      {!playing && !awaitingInput && (
-        <button className="games-open" onClick={() => setPlaying(true)} title="Something to do while an agent works">
-          Play
-        </button>
+      {/* Opened from the chat's ··· menu, not a floating button: one that
+          floats over the chat can cover a permission prompt's keys. */}
+      <p className="sr-only" role="status">
+        {announcement}
+      </p>
+      {createPortal(
+        <GamesPanel open={playing} awaitingInput={awaitingInput} onClose={() => setPlaying(false)} />,
+        document.body,
       )}
-      <GamesPanel
-        open={playing}
-        awaitingInput={awaitingInput}
-        onClose={() => setPlaying(false)}
-      />
     </aside>
   );
 }
 
+type TagState = "cue" | "onair" | "new" | "off" | "failed" | "ready";
+
 /**
- * At-a-glance state for a conversation: waiting on you, working, idle, or
- * detached. Ordered by urgency — a blocked agent matters more than a busy one.
+ * A chat's state, in order of urgency: blocked on you beats busy, busy beats
+ * an unread reply, and "no agent attached" is the quietest mark. Ready has none.
  */
-/** A schedule's state is its latest run's. */
-function RunIcon({ run }: { run: ScheduleRun | undefined }) {
-  if (!run) return <span className="status status-detached" title="Never run" aria-label="Never run" />;
-  if (run.outcome === "running") return <span className="status status-working" title="Running" aria-label="Running" />;
-  if (run.unread) return <span className="status status-unread" title="A run you have not opened" aria-label="Unread" />;
-  if (run.outcome === "failed") return <span className="status status-failed" title="Last run failed" aria-label="Failed" />;
-  return <span className="status status-idle" title="Last run ok" aria-label="Ok" />;
+function chatState(session: SessionSummary): TagState {
+  if (session.awaitingInput) return "cue";
+  if (session.busy) return "onair";
+  if (session.unread) return "new";
+  if (!session.live) return "off";
+  return "ready";
 }
 
-function StatusIcon({ session }: { session: SessionSummary }) {
-  if (session.awaitingInput) {
-    return <span className="status status-input" title="Waiting for your answer" aria-label="Needs input" />;
+/** A schedule's state is its latest run's. */
+function runState(run: ScheduleRun | undefined): TagState {
+  if (!run) return "off";
+  if (run.outcome === "running") return "onair";
+  if (run.unread) return "new";
+  if (run.outcome === "failed") return "failed";
+  return "ready";
+}
+
+/** The second line of a chat row, when its state says more than the agent's name. */
+const STATE_NOTE: Partial<Record<TagState, string>> = {
+  cue: "Waiting for your answer",
+  onair: "Working",
+  off: "No agent attached",
+};
+
+const TAG_TITLE: Record<Exclude<TagState, "ready">, string> = {
+  cue: "Cue: the agent is waiting for your answer",
+  onair: "On air: the agent is working",
+  new: "New: a reply you have not opened yet",
+  off: "Off: no agent attached. Open it and resume to continue",
+  failed: "Failed: the last run did not finish",
+};
+
+/** The state as a word and a shape, never colour alone, with a tooltip saying what it means. */
+function StateTag({ state }: { state: TagState }) {
+  if (state === "ready") return null;
+  const title = TAG_TITLE[state];
+  switch (state) {
+    case "cue":
+      return (
+        <span className="tag cue" title={title} aria-label={title}>
+          <CueMark />
+          Cue
+        </span>
+      );
+    case "onair":
+      return (
+        <span className="tag onair" title={title} aria-label={title}>
+          <i className="lamp" />
+          On air
+        </span>
+      );
+    case "new":
+      return <span className="tag new" title={title} aria-label={title}>New</span>;
+    case "off":
+      return <span className="tag off" title={title} aria-label={title}>Off</span>;
+    case "failed":
+      return (
+        <span className="tag failed" title={title} aria-label={title}>
+          <Icon name="cross" size={11} />
+          Failed
+        </span>
+      );
   }
-  if (session.busy) {
-    return <span className="status status-working" title="Working" aria-label="Working" />;
-  }
-  if (!session.live) {
-    return <span className="status status-detached" title="No agent attached" aria-label="Detached" />;
-  }
-  return <span className="status status-idle" title="Ready" aria-label="Ready" />;
 }
 
 /**

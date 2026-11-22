@@ -333,6 +333,7 @@ function ScheduleForm({
               max={SCHEDULE_MAX_MINUTES}
               value={form.everyMinutes}
               disabled={form.at !== null}
+              aria-label="Minutes between runs"
               onChange={(e) => set("everyMinutes", Number(e.target.value))}
             />
             <span>minutes</span>
@@ -340,7 +341,7 @@ function ScheduleForm({
           <label className="schedule-radio">
             <input type="radio" checked={form.at !== null} onChange={() => set("at", form.at ?? "09:00")} />
             <span>daily at</span>
-            <input type="time" value={form.at ?? "09:00"} disabled={form.at === null} onChange={(e) => set("at", e.target.value)} />
+            <input type="time" aria-label="Time of day" value={form.at ?? "09:00"} disabled={form.at === null} onChange={(e) => set("at", e.target.value)} />
             <label className="schedule-inline">
               <input
                 type="checkbox"

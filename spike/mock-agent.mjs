@@ -12,6 +12,21 @@ const cancelled = new Set();
 /** Set from the client's `initialize`; gates the compaction updates below. */
 let compactionAllowed = false;
 
+/**
+ * With MOCK_EFFORT_COMMAND set, a new session offers `/effort` the way Kiro
+ * does, as soon as it exists, so the effort picker can be tried without Kiro.
+ */
+function announceEffortCommand(client, sessionId) {
+  if (!process.env.MOCK_EFFORT_COMMAND) return sessionId;
+  setTimeout(() => {
+    void client.notify("_kiro.dev/commands/available", {
+      sessionId,
+      commands: [{ name: "/effort", description: "Set thinking effort", meta: { inputType: "selection" } }],
+    });
+  }, 20);
+  return sessionId;
+}
+
 const app = agent({ name: "mock-agent" })
   // ACP sends cancellation as a notification, not a request.
   .onNotification("session/cancel", ({ params }) => {
@@ -35,8 +50,10 @@ const app = agent({ name: "mock-agent" })
       authMethods: [],
     };
   })
-  .onRequest("session/new", () => ({
-    sessionId: `mock-session-${++seq}`,
+  // MOCK_SESSION_DELAY_MS stands in for a real agent's slow start, so a
+  // message sent before the agent is up can be tried.
+  .onRequest("session/new", async ({ client }) => (await sleep(Number(process.env.MOCK_SESSION_DELAY_MS ?? 0)), {
+    sessionId: announceEffortCommand(client, `mock-session-${++seq}`),
     // Two shapes the composer must cope with: the legacy modes state, and the
     // newer generic config options.
     modes: {
@@ -116,6 +133,8 @@ const app = agent({ name: "mock-agent" })
   })
   .onRequest("session/set_mode", () => ({}))
   .onRequest("session/load", async ({ params, client }) => {
+    // MOCK_LOAD_DELAY_MS: a slow resume, to try switching chats while it runs.
+    await sleep(Number(process.env.MOCK_LOAD_DELAY_MS ?? 0));
     const notify = (update) =>
       client.notify("session/update", { sessionId: params.sessionId, update });
     // Real agents replay both sides of the conversation, so the client has to
@@ -143,14 +162,60 @@ const app = agent({ name: "mock-agent" })
     const notify = (update) =>
       client.notify("session/update", { sessionId: params.sessionId, update });
 
+    // Kiro's effort command, answered at once like Kiro does.
+    const effort = /^\/effort (\S+)$/.exec(params.prompt?.[0]?.text ?? "");
+    if (effort) {
+      await notify({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: `Effort set to ${effort[1]}` } });
+      return { stopReason: "end_turn" };
+    }
+
     // A long turn, so cancellation has something to interrupt.
     if (params.prompt?.[0]?.text === "long") {
       cancelled.delete(params.sessionId);
       for (let i = 0; i < 100; i++) {
         if (cancelled.has(params.sessionId)) return { stopReason: "cancelled" };
         await notify({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "." } });
-        await sleep(100);
+        // Stretched for screenshots that need a chat still working.
+        await sleep(Number(process.env.MOCK_LONG_STEP_MS) || 100);
       }
+      return { stopReason: "end_turn" };
+    }
+
+    // The README screenshot's chat, with the comps' timing: a read, an edit,
+    // a test run, then a permission prompt left open. Generic content only.
+    if (/^Add a \/health endpoint/.test(params.prompt?.[0]?.text ?? "")) {
+      const step = (ms) => sleep(ms * (Number(process.env.MOCK_DEMO_PACE) || 1));
+      await notify({ sessionUpdate: "session_info_update", title: "Add a health check to the API" });
+      await notify({ sessionUpdate: "usage_update", used: 76_000, size: 200_000 });
+      await step(3000);
+      await notify({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "I'll add the route beside the existing status route, then run the tests." } });
+      await step(1000);
+      await notify({ sessionUpdate: "tool_call", toolCallId: "d-read", title: "Read", kind: "read", status: "completed", rawInput: { file_path: "src/server.ts" } });
+      await step(7000);
+      await notify({ sessionUpdate: "tool_call", toolCallId: "d-edit", title: "Edited", kind: "edit", status: "in_progress", rawInput: { file_path: "src/server.ts" } });
+      await notify({
+        sessionUpdate: "tool_call_update", toolCallId: "d-edit", status: "completed",
+        content: [{
+          type: "diff", path: "src/server.ts",
+          oldText: 'app.get("/status", (req, res) => {\n  res.json(status());\n});\n',
+          newText: 'app.get("/status", (req, res) => {\n  res.json(status());\n});\n\napp.get("/health", (req, res) => {\n  res.json({ ok: true, uptime: process.uptime() });\n});\n',
+        }],
+      });
+      await step(8000);
+      await notify({ sessionUpdate: "tool_call", toolCallId: "d-test", title: "Ran", kind: "execute", status: "completed", rawInput: { command: "npm test -- health" } });
+      await step(5000);
+      await notify({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "The test passes. To try it live I need to restart the api container. Requests fail for about two seconds." } });
+      await step(1000);
+      const answer = await client.request("session/request_permission", {
+        sessionId: params.sessionId,
+        toolCall: { toolCallId: "d-restart", title: "Run this command? docker compose restart api" },
+        options: [
+          { optionId: "once", name: "Allow once", kind: "allow_once" },
+          { optionId: "always", name: "Allow for this chat", kind: "allow_always" },
+          { optionId: "no", name: "Deny", kind: "reject_once" },
+        ],
+      });
+      await notify({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: answer.outcome.optionId === "no" ? "Left it running as it was." : "Restarted. /health answers 200." } });
       return { stopReason: "end_turn" };
     }
 

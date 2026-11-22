@@ -192,9 +192,52 @@ history is captured exactly once. See
 [PROTOCOL.md](PROTOCOL.md#an-adopted-conversation-is-the-one-case-where-the-replay-is-kept).
 
 **The wrinkle:** models are only known *after* `session/new`, so the picker
-cannot be populated before a session exists. Hence **draft sessions** — picking
-a provider creates one immediately so the pickers can populate; it is promoted
-to `active` on first message, and drafts are garbage-collected on startup.
+cannot be populated before a session exists. Hence **draft sessions**. The app
+opens on a new chat with the agent, folder and settings last used, and starts
+that agent at once (`open` with `draft: true`), so the pickers fill and the
+first message goes without a wait. A draft writes nothing: its events are held
+in memory and it is not listed. The first message sent promotes it — the held
+log is written, then the row — at the moment the message is queued, not when
+its turn runs, so a page that sends and closes its socket at once cannot lose
+it. A draft nobody is viewing any more (another chat opened, the tab closed)
+is closed by `SessionManager.view`, leaving no trace.
+
+Each `open` carries a `requestId`. A socket has a view generation
+(`SocketView.generation` in `ws.ts`), bumped by every `open`, `adopt`,
+`subscribe` and `resume`; a handler that awaits takes it first and checks it,
+and the socket's `closed`, before it watches or answers. So a slow start or
+resume the reader has left is never shown: a superseded draft is closed when
+it comes up, and a late resume cannot take the socket from the chat on screen.
+A start's failure carries its `requestId` (a provider no longer configured
+included), and the page acts only on the start it is waiting for; a failure
+ends that start, and the next Enter begins a new one. An `open` or `adopt`
+lets go of the chat on screen at once, so a draft it replaces is closed even
+if the new start fails. A draft nothing was said in dies with its socket, so
+the page treats it as gone too and starts a fresh one on reconnect; and a send
+on a closed socket reports failure, so the box keeps its words.
+
+**The server never holds an unsent message.** Enter before the agent is up
+leaves the text in the box, read-only, under "Sends when <agent> is ready"
+with a Cancel, and records the start it waits on (`firstMessage.ts`). When
+that exact start's `session_opened` arrives, the composer sends it as an
+ordinary prompt and clears the box. Anything else — a new folder or agent, a
+failed start, a dropped socket (the page reopens with a new id), another
+chat, a reload — sends nothing and leaves the words in the box; the new
+chat's text is kept in `localStorage`, so a reload brings it back. An earlier
+version held the message on the server; every way that could go wrong (a lost
+acknowledgement sending it twice, a failure with nobody to give it back to)
+came from there being two copies, so now there is one.
+
+**Settings the agent offers only as a slash command** (Kiro's `/effort`) are
+sent as *quiet* turns: a prompt with `quiet: true` runs as an ordinary turn,
+and its `user_message` carries `quiet`. The browser hides that turn and the
+agent's answer; it does not name the chat, does not count as working, and does
+not promote a draft. Errors, permission prompts and questions are the
+exception: they stay visible, and a quiet turn waiting on one counts as working,
+so it can be answered or stopped. An opening that is only a slash command is sent quietly
+the same way, which is how the effort picker's last choice reaches every new
+chat. The log still holds it — nothing is hidden from the record, only from the
+transcript.
 
 ## Schedules: a timer over ordinary sessions
 
@@ -249,6 +292,82 @@ labelled as such. A turn is capped like a scheduled run — a participant
 raising a permission prompt in a room has nobody to answer it, and the view
 says so while it waits — and a participant that cannot answer stops the room
 with its name in the message rather than being skipped in silence.
+
+## Unread chats: read state beside the log
+
+A chat is unread when the agent finished a reply while no browser had it open.
+That is not something the event log can say, because "open" is a fact about
+sockets, not about the conversation. So it is a column on `sessions`
+(`unread`), set and cleared by `SessionManager`, the same way a schedule run's
+`unread` is kept on `schedule_runs`.
+
+- **Who is looking:** each socket that subscribes to a chat counts as a viewer
+  (`SessionManager.view`), released when it switches away or disconnects.
+  Counted, not a flag, because two tabs can hold the same chat.
+- **Set:** on every `turn_end` while the viewer count is zero, except a turn
+  closed only because the session was shutting down.
+- **Cleared:** when a socket subscribes, which is what opening a chat does.
+- **Sent:** with the session list, so a reload and every tab agree. A summary
+  sent for the chat being watched always says read.
+
+This bends invariant 2 the way `schedule_runs.unread` already did: the
+column is read state, not derived from `events`. A `sessions` table rebuilt
+from the log starts with every chat read, which is the safe way to be wrong.
+
+## The look: On Air
+
+The visual system is "On Air" (approved comps and reasoning in
+`design/README.md`). What the code relies on:
+
+- **A theme is one block of tokens** in `styles.css`. `theme.ts` names the
+  themes and resolves System to Cream or Studio, so `data-theme` on `<html>`
+  always names a real block; no theme is written twice. Every other colour in
+  the stylesheet is derived from those tokens. Adding a theme is a block there
+  and a line in `THEMES`.
+- **Fill and ink are separate tokens.** A colour read as words gets its own
+  token where the fill colour is too light (`--onair` for the lamp,
+  `--onair-text` for teal words), and each theme has its own code colours.
+  `contrast.test.ts` reads the blocks and fails any text pair under 4.5:1, so
+  the rule holds for a theme added later. Words are never faded with opacity.
+- **Sizes that hold text are in rem,** including the running sheet's time
+  column and gutter, so a reader's larger browser text widens them too.
+- **Fonts are self-hosted** (Archivo and Red Hat Mono, both OFL, licences in
+  `packages/web/src/fonts/`). Corella is local-first: the page fetches nothing
+  from anywhere but its own server.
+- **Raised keys only where a press matters:** New chat, Send, and the answers
+  to a permission prompt. Their socket and drop are 1 to 1.5px; thicker reads
+  as a cartoon.
+- **State is a word and a shape, never colour alone.** Red (`--cue`) means one
+  thing: you are needed, or something failed. Working has its own teal lamp.
+- **The running sheet's times are derived from the log** (`turnTimes` in
+  `timeline.ts`): each event's time since its turn began. A short run of tool
+  steps shows one line each with its time; more than `FOLD_AFTER` fold into one
+  line.
+- **Narrow screens are one column** (below 860px: a phone, a tablet, a small
+  window). The sidebar is a list that slides over the page, opened by the back
+  key in each header; going anywhere closes it. The Changes and Files pane is a
+  full-screen sheet, and Changes moves into the ··· menu. The composer row and
+  header give up words before they wrap — by container queries on the chat
+  column, so the same happens beside an open pane at 1280 — and on a phone the
+  row scrolls sideways, with the folder menu as a sheet at the foot (a menu
+  inside a scrolling row would be clipped). Auto-approve sits with Stop and
+  Send, outside that row, because a safety state must not scroll out of
+  sight; the word games' sheet closes when the agent asks, for the same
+  reason. Main controls are 44px on narrow
+  or touch screens. Pure CSS plus one boolean in `App`; nothing about a chat
+  changes with the width. Open, the list acts as a dialog: focus moves in,
+  the page behind is `inert`, and Escape gives focus back to the back key.
+
+## App-wide settings
+
+Switches that should be the same in every tab live in the store's `settings`
+table (one row per key, a JSON value), behind `GET` and `PATCH /api/settings`;
+a key never written reads as its default. The one so far is **Auto-approve new
+chats**, off by default. The server applies it when the composer opens a chat
+(`withNewChatDefaults`), only where the start options do not already say;
+schedules and rooms carry their own setting. The chat's own checkbox then
+overrides it for that chat. Display preferences that are one person's taste
+(the theme, raw payloads) stay in the browser's `localStorage`.
 
 ## Robustness: hanging processes
 
@@ -332,12 +451,20 @@ CREATE TABLE provider_checks (
 );
 ```
 
-A provider must be `ok` before it appears in the new-chat provider list. If a
+**Checks run by themselves.** `autoCheck.ts` checks every provider when the
+server starts, and again whenever one is added or its command, arguments,
+environment or folder change — noticed when the providers list is read, since
+`config.json` is read afresh each time. Checks run in the background; the list
+marks a provider `checking`, and the page asks again until none are. Check in
+Settings remains, for seeing why one fails.
+
+A provider must be `ok` before it can be chosen for a new chat. If a
 runtime failure happens anyway — the binary was removed, a token expired — the
 provider is marked `stale` and the error links back to the setup page. Verified
 is a cached fact with a timestamp, not a permanent guarantee.
 
-First run with nothing configured lands on setup.
+A provider that is not `ok` is still listed in the new chat's agent picker,
+greyed, with its check's message, so a missing agent is not a mystery.
 
 ## Errors and debugging
 
@@ -404,6 +531,12 @@ and knowing when an agent misbehaves.
   (`node --watch` in dev, or a reboot) does not log the browser out. It does not
   protect against a process running as the same user, which can read the file;
   it protects against everything else on the machine.
+- **Six files skip the login: the web app manifest and its icons**
+  (`PUBLIC_FILES` in `http.ts`). Browsers fetch a manifest without
+  credentials, so behind the login the page could not be installed as an app.
+  They hold only the name, colours and icon. Exact paths, GET only, and a
+  missing one is a 404 rather than the SPA fallback, so nothing else is served
+  without the token.
 - The data folder is 0700 and its files 0600 (the database and its WAL files,
   the token, the config, the process ledger, traces): they hold work
   conversations, source code and provider `env` values.

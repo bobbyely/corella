@@ -5,14 +5,39 @@ misbehaves. For the rules of the codebase see [AGENTS.md](../AGENTS.md).
 
 ## Running from a checkout
 
-Requires **Node 22.5+** (for the built-in `node:sqlite`). See `.nvmrc`.
+Requires **Node 22.16+**. Before 22.13 the built-in `node:sqlite` loads only
+behind a flag, so the server stops at start; before 22.16 its full-text search
+(FTS5) is missing, so search and most server tests fail. Vite 8 also needs a
+recent 22. See `.nvmrc`, which CI reads (it names `22`, so CI gets the latest
+22.x).
 
 ```bash
 git clone https://github.com/bobbyely/corella.git
 cd corella
 npm install
-npm start                 # builds everything, prints http://127.0.0.1:4711/?token=…
+npm start                 # prints http://127.0.0.1:4711/?token=…
 ```
+
+`npm start` runs `bin/corella.mjs --no-open`, the same script as the `corella`
+command (`npm link` or `npm install -g .` in the checkout puts it on `PATH`;
+both link to the checkout, so it runs whatever you have checked out). It builds
+only when a package's `dist` is missing or older than anything in its `src`
+or the files beside it (`package.json`, `tsconfig.json`, `vite.config.ts`,
+`index.html`), and says which file made it build. It does not look at
+`node_modules`: after an `npm install` that changes a dependency, run
+`npm run build` yourself. Then it imports the server's `dist/index.js` in the
+same process, so Ctrl-C reaches the server directly.
+
+| Option | Does |
+|---|---|
+| (none) | Opens the default browser at the login link (`open`, `xdg-open` or `start`) |
+| `--app` | Opens Chrome, Edge, Brave or Chromium in app mode (`--app=<url>`): the usual install folders on macOS and Windows, then `PATH`. None found: the default browser, with a line saying why |
+| `--no-open` | Opens nothing |
+| `--port <n>` | The port; otherwise `CORELLA_PORT`, otherwise 4711 |
+| `--help`, `--version` | What they say |
+
+The browser is started detached, so it stays open after Ctrl-C. A taken port
+is reported plainly, saying whether the thing on it is another Corella.
 
 Open the printed link. The token in it is the login: the server trades it for a
 cookie (`HttpOnly`, `SameSite=Strict`) and redirects to the plain address, which
@@ -91,6 +116,15 @@ Configured in `<dataDir>/config.json`, seeded on first run with Kiro, Claude
 Code, Gemini CLI, Codex, and — when running from a checkout — an offline mock
 agent that always passes, so you can try the chat with no agent installed.
 
+The mock plays the README screenshot's chat when a message starts with
+`Add a /health endpoint`: a read, an edit, a test run and a permission prompt,
+at the screenshot's timing (set `MOCK_DEMO_PACE=0.2` for five times faster).
+`MOCK_LONG_STEP_MS` stretches its `long` turn, for a chat that stays On air.
+`MOCK_SESSION_DELAY_MS` slows its start, to try sending before the agent is up
+(`MOCK_LOAD_DELAY_MS` does the same for resuming a conversation),
+and `MOCK_EFFORT_COMMAND=1` makes it offer Kiro's `/effort` command, for the
+effort picker.
+
 Adding another is a config entry, not code:
 [PROVIDERS.md](PROVIDERS.md) has the recipe and an honest table of
 which ones have actually been run.
@@ -109,7 +143,7 @@ that error names each problem. Delete the file to get the defaults back.
 
 `CORELLA_DATA_DIR` overrides it. `CORELLA_PORT` changes the port.
 `CORELLA_CWD` sets the directory a new chat starts in (otherwise the directory
-`npm start` was run from).
+`corella` or `npm start` was run from).
 `CORELLA_TRACE=1` logs every JSON-RPC frame to a JSONL file in the data
 directory. `CORELLA_DEV=1` additionally trusts Vite's origin on port 5173 —
 `npm run dev` sets it for you, and a normal run should not: 5173 is Vite's

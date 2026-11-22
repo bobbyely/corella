@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { ResizeHandle } from "./ResizeHandle.js";
 
 const WIDTH_KEY = "kc.changes.width";
 const MIN_WIDTH = 320;
-const DEFAULT_WIDTH = 560;
+const DEFAULT_WIDTH = 440;
 /** Never wider than this share of the window: the conversation must stay readable. */
 const MAX_SHARE = 0.6;
 
@@ -44,27 +45,15 @@ export function SidePane({
   const [width, setWidth] = useState(loadWidth);
   const pane = useRef<HTMLDivElement>(null);
 
-  // Pointer capture keeps the drag alive when the cursor outruns the handle.
-  const startResize = (e: PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const handle = e.currentTarget;
-    handle.setPointerCapture(e.pointerId);
-    const onMove = (ev: globalThis.PointerEvent) => setWidth(clampWidth(window.innerWidth - ev.clientX));
-    const onUp = () => {
-      handle.removeEventListener("pointermove", onMove);
-      handle.removeEventListener("pointerup", onUp);
-      setWidth((w) => {
-        try {
-          localStorage.setItem(WIDTH_KEY, String(w));
-        } catch {
-          // Nothing to do: the width just will not be remembered.
-        }
-        return w;
-      });
-    };
-    handle.addEventListener("pointermove", onMove);
-    handle.addEventListener("pointerup", onUp);
-  };
+  const keepWidth = () =>
+    setWidth((w) => {
+      try {
+        localStorage.setItem(WIDTH_KEY, String(w));
+      } catch {
+        // Nothing to do: the width just will not be remembered.
+      }
+      return w;
+    });
 
   useEffect(() => {
     pane.current?.focus();
@@ -78,7 +67,17 @@ export function SidePane({
 
   return (
     <aside className="changes" ref={pane} tabIndex={-1} onKeyDown={onKeyDown} aria-label="Side pane" style={{ flexBasis: width }}>
-      <div className="changes-resize" onPointerDown={startResize} title="Drag to resize" />
+      <ResizeHandle
+        className="changes-resize"
+        label="Side pane width"
+        width={width}
+        min={MIN_WIDTH}
+        max={Math.round(window.innerWidth * MAX_SHARE)}
+        grow={-1}
+        fromPointer={(x) => window.innerWidth - x}
+        onChange={(w) => setWidth(clampWidth(w))}
+        onCommit={keepWidth}
+      />
       <div className="changes-head" role="tablist">
         {(Object.keys(tabs) as SideTab[]).map((id) => (
           <button key={id} role="tab" aria-selected={tab === id} className={`side-tab ${tab === id ? "active" : ""}`} onClick={() => onTab(id)}>

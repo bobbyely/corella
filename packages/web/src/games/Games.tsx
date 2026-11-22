@@ -69,7 +69,18 @@ export function GamesPanel({
           Anagram
         </button>
         <span className="games-spacer" />
-        {awaitingInput && <span className="games-nudge">Agent needs you</span>}
+        {awaitingInput && (
+          <button
+            className="games-nudge"
+            onClick={() => {
+              onClose();
+              // The open question in the chat on screen, if it is that chat that asked.
+              requestAnimationFrame(() => document.querySelector<HTMLElement>(".ask:not(.answered)")?.focus());
+            }}
+          >
+            Agent needs you
+          </button>
+        )}
         <button className="games-close" onClick={onClose} title="Close (Esc)" aria-label="Close">
           ×
         </button>

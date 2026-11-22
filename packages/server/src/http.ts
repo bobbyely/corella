@@ -4,6 +4,7 @@ import { extname, join, normalize } from "node:path";
 import { collectRoots, isImageMime, kcError, type KcError } from "@corella/shared";
 import type {
   AgentSessionsResponse,
+  AppSettings,
   ProviderView,
   RoomInput,
   Schedule,
@@ -12,6 +13,7 @@ import type {
 } from "@corella/shared";
 import { listAgentSessions } from "./agentSessions.js";
 import { authorized, loadToken, loginCookie, sameToken } from "./auth.js";
+import { AutoCheck } from "./autoCheck.js";
 import { checkProvider } from "./check.js";
 import { exportFilename, toMarkdown } from "./export.js";
 import { listDirectory, rawFile, readText, validateRoot } from "./files.js";
@@ -83,7 +85,25 @@ const MIME: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
   ".svg": "image/svg+xml",
   ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".woff2": "font/woff2",
+  ".webmanifest": "application/manifest+json",
 };
+
+/**
+ * Served without the login cookie, because browsers fetch a web app's
+ * manifest (and often its icons) without credentials: behind the login, the
+ * page could not be installed as an app. These files hold nothing but the
+ * app's name, colours and icon. Exact paths only, so nothing else slips past.
+ */
+const PUBLIC_FILES = new Set([
+  "/manifest.webmanifest",
+  "/icon.svg",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-512.png",
+  "/apple-touch-icon.png",
+]);
 
 export function startServer(port: number, webRoot: string | null): Server {
   const token = loadToken();
@@ -93,6 +113,15 @@ export function startServer(port: number, webRoot: string | null): Server {
   scheduler.start();
   const rooms = new RoomManager(store, sessions, () => loadConfig().providers);
   rooms.start();
+  // Every agent is checked as the server starts, so the first new chat can
+  // use it without a visit to Settings.
+  const checks = new AutoCheck(store);
+  try {
+    checks.run(loadConfig().providers);
+  } catch (err) {
+    // A broken config.json is reported to the page by the providers route.
+    console.error("[check] could not read the providers to check them:", err);
+  }
 
   const server = createServer(async (req, res) => {
     if (!originAllowed(req, port)) {
@@ -113,6 +142,11 @@ export function startServer(port: number, webRoot: string | null): Server {
       res.end();
       return;
     }
+    if (webRoot && req.method === "GET" && PUBLIC_FILES.has(url.pathname)) {
+      // No SPA fallback here: a missing icon is a 404, never the app's page.
+      if (!existsSync(join(webRoot, url.pathname))) return sendError(res, 404, kcError("FILE_UNKNOWN", `No ${url.pathname} in this build.`));
+      return serveStatic(res, webRoot, url.pathname);
+    }
     if (!authorized(req, token, port)) {
       const error = kcError("AUTH_REQUIRED", "This browser is not logged in to Corella.");
       if (url.pathname.startsWith("/api/")) return sendError(res, 401, error);
@@ -127,7 +161,7 @@ export function startServer(port: number, webRoot: string | null): Server {
       if (/^\/api\/sessions\/[^/]+\/(files|file|raw|roots)$/.test(url.pathname)) {
         return await handleFiles(req, res, url, store, sessions);
       }
-      if (url.pathname.startsWith("/api/")) return await handleApi(req, res, url, store);
+      if (url.pathname.startsWith("/api/")) return await handleApi(req, res, url, store, checks);
       if (webRoot) return serveStatic(res, webRoot, url.pathname);
       return sendJson(res, 404, { error: kcError("INTERNAL", "No web build. Run `npm run build`.") });
     } catch (err) {
@@ -172,19 +206,38 @@ async function handleApi(
   res: ServerResponse,
   url: URL,
   store: Store,
+  checks: AutoCheck,
 ): Promise<void> {
   const config = loadConfig();
 
   // GET /api/providers — the setup page's list, each with its last check.
   if (url.pathname === "/api/providers" && req.method === "GET") {
+    // config.json is read afresh each time, so this is where a provider
+    // added or changed by hand is noticed, and checked.
+    checks.run(config.providers);
     const providers: ProviderView[] = config.providers.map((p) => ({
       ...p,
       // Names only: the values are often API keys, and the page never needs them.
       ...(p.env ? { env: Object.fromEntries(Object.keys(p.env).map((k) => [k, "(hidden)"])) } : {}),
       lastCheck: store.lastCheck(p.id),
+      checking: checks.checking(p.id),
       defaults: store.rememberedStart(p.id),
     }));
     return sendJson(res, 200, { providers, platform: hostPlatform() });
+  }
+
+  // GET /api/settings, PATCH /api/settings — the Settings page's switches.
+  if (url.pathname === "/api/settings") {
+    if (req.method === "GET") return sendJson(res, 200, store.settings());
+    if (req.method === "PATCH") {
+      const body = (await readJson(req)) as Record<string, unknown>;
+      const patch: Partial<AppSettings> = {};
+      if (typeof body["autoApproveNewChats"] === "boolean") patch.autoApproveNewChats = body["autoApproveNewChats"];
+      if (Object.keys(patch).length === 0) {
+        return sendError(res, 400, kcError("MESSAGE_INVALID", "Nothing to update: autoApproveNewChats must be true or false."));
+      }
+      return sendJson(res, 200, store.updateSettings(patch));
+    }
   }
 
   // PATCH /api/providers/:id — correct a command path without editing JSON.
