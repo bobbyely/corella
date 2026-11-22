@@ -87,7 +87,10 @@ describe("the queue", () => {
     const off = autoApprove(session);
 
     const running = session.prompt("long");
-    await new Promise((r) => setTimeout(r, 150));
+    // Wait for the mock to be inside its turn, not for a guess at how long that
+    // takes. A cancel that lands before the mock starts the turn is wiped by
+    // the turn's own start-up, and the turn then runs to the end.
+    assert.ok(await until(() => session.eventsSince(0).some((e) => e.type === "agent_text"), 10_000), "the turn is under way");
     void session.prompt("later");
     // Like `prompt`, `interrupt` resolves when its own turn ends — so look at
     // the queue before waiting on it.
