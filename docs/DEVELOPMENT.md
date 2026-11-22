@@ -123,7 +123,9 @@ at the screenshot's timing (set `MOCK_DEMO_PACE=0.2` for five times faster).
 `MOCK_SESSION_DELAY_MS` slows its start, to try sending before the agent is up
 (`MOCK_LOAD_DELAY_MS` does the same for resuming a conversation),
 and `MOCK_EFFORT_COMMAND=1` makes it offer Kiro's `/effort` command, for the
-effort picker.
+effort picker. A message starting `Show markdown` gets a reply using every
+markdown feature the transcript draws (headings, lists, code, a table, task
+boxes), for checking the markdown stack by eye after an upgrade.
 
 Adding another is a config entry, not code:
 [PROVIDERS.md](PROVIDERS.md) has the recipe and an honest table of

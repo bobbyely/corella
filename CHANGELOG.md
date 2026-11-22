@@ -6,6 +6,11 @@ All notable changes to Corella are written down here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- React and React DOM 19 (from 18), and react-markdown 10 (from 9), moved
+  together: the two React packages must always be the same version.
+
 ## [0.2.0] - 2026-11-22
 
 **Upgrading:** Corella now needs **Node 22.16 or newer** (it said 22.5). It

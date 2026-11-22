@@ -181,6 +181,41 @@ const app = agent({ name: "mock-agent" })
       return { stopReason: "end_turn" };
     }
 
+    // A reply using every markdown feature the transcript renders, so a change
+    // to the markdown stack (react-markdown, remark-gfm, highlighting) can be
+    // checked by eye.
+    if (/^Show markdown/.test(params.prompt?.[0]?.text ?? "")) {
+      const text = [
+        "## A heading",
+        "",
+        "Some **bold**, some *italic*, `inline code` and a [link](https://example.com).",
+        "",
+        "- first item",
+        "- second item",
+        "",
+        "1. one",
+        "2. two",
+        "",
+        "> a quoted line",
+        "",
+        "```ts",
+        "export function add(a: number, b: number): number {",
+        "  return a + b;",
+        "}",
+        "```",
+        "",
+        "| Name | Value |",
+        "| --- | --- |",
+        "| alpha | 1 |",
+        "| beta | 2 |",
+        "",
+        "- [x] done",
+        "- [ ] not done",
+      ].join("\n");
+      await notify({ sessionUpdate: "agent_message_chunk", content: { type: "text", text } });
+      return { stopReason: "end_turn" };
+    }
+
     // The README screenshot's chat, with the comps' timing: a read, an edit,
     // a test run, then a permission prompt left open. Generic content only.
     if (/^Add a \/health endpoint/.test(params.prompt?.[0]?.text ?? "")) {
