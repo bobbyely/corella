@@ -417,6 +417,11 @@ All of these were real races, found the hard way.
   their select 22px, so a tap on most of a 44px pill only focused it. Pills
   take `min-height`, and the select stretches over the pill, its padding and
   the chevron (`pointer-events: none`).
+- **A chat error row must carry the error's `cause`.** `RPC_ERROR`'s
+  remediation says "See the details below", but `buildRows` copied only code,
+  message and remediation, so the agent's own reason ("You've reached your
+  overage limit") was stored and never shown. The row now keeps `cause`: its
+  first line is the summary and the full trace opens under it.
 
 ## Untrusted input
 
