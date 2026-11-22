@@ -6,6 +6,15 @@ All notable changes to Corella are written down here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-23
+
+### Fixed
+
+- **An agent error says why.** When the agent failed a turn, the chat said
+  "See the details below" with nothing below it. It now shows the agent's own
+  reason, such as "You've reached your overage limit", and the full trace
+  opens under it.
+
 ### Changed
 
 - React and React DOM 19 (from 18), and react-markdown 10 (from 9), moved
@@ -179,5 +188,6 @@ mid-conversation.
   `?token=…`). The browser remembers you after that. The theme choice resets
   to the default once.
 
+[0.2.1]: https://github.com/bobbyely/corella/releases/tag/v0.2.1
 [0.2.0]: https://github.com/bobbyely/corella/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bobbyely/corella/releases/tag/v0.1.0
