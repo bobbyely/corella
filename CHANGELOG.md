@@ -6,6 +6,8 @@ All notable changes to Corella are written down here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-22
+
 **Upgrading:** Corella now needs **Node 22.16 or newer** (it said 22.5). It
 always did in practice: before 22.13 the server stops at start, and before
 22.16 search is missing. With nvm: `nvm install 22 && nvm use 22`.
@@ -172,4 +174,5 @@ mid-conversation.
   `?token=…`). The browser remembers you after that. The theme choice resets
   to the default once.
 
+[0.2.0]: https://github.com/bobbyely/corella/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bobbyely/corella/releases/tag/v0.1.0
