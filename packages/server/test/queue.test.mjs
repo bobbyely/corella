@@ -57,13 +57,20 @@ function autoApprove(session) {
   });
 }
 
+// Waits until the mock is inside the "long" turn, not for a guess at how long
+// that takes: before then "long" may still be in the queue, and a cancel that
+// lands first is wiped by the turn's own start-up.
+async function underWay(session) {
+  assert.ok(await until(() => session.eventsSince(0).some((e) => e.type === "agent_text"), 10_000), "the turn is under way");
+}
+
 describe("the queue", () => {
   it("holds messages typed during a turn and runs them in order", async () => {
     const session = await sessions.open(provider, "/tmp");
     const off = autoApprove(session);
 
     const running = session.prompt("long");           // the mock's slow path
-    await new Promise((r) => setTimeout(r, 150));
+    await underWay(session);
     void session.prompt("second");
     void session.prompt("third");
     assert.deepEqual(session.summary().queued, ["second", "third"]);
@@ -74,7 +81,7 @@ describe("the queue", () => {
     assert.deepEqual(session.summary().queued, ["THIRD", "second"]);
 
     await running;
-    await new Promise((r) => setTimeout(r, 800));
+    assert.ok(await until(() => session.eventsSince(0).filter((e) => e.type === "turn_end").length >= 3, 10_000), "the queued turns ran");
     off();
 
     const said = session.eventsSince(0).filter((e) => e.type === "user_message").map((e) => e.text);
@@ -87,10 +94,7 @@ describe("the queue", () => {
     const off = autoApprove(session);
 
     const running = session.prompt("long");
-    // Wait for the mock to be inside its turn, not for a guess at how long that
-    // takes. A cancel that lands before the mock starts the turn is wiped by
-    // the turn's own start-up, and the turn then runs to the end.
-    assert.ok(await until(() => session.eventsSince(0).some((e) => e.type === "agent_text"), 10_000), "the turn is under way");
+    await underWay(session);
     void session.prompt("later");
     // Like `prompt`, `interrupt` resolves when its own turn ends — so look at
     // the queue before waiting on it.
@@ -129,7 +133,7 @@ describe("a prompt's promise", () => {
     const session = await sessions.open(provider, "/tmp");
     const off = autoApprove(session);
     void session.prompt("long"); // the mock's slow path
-    await new Promise((r) => setTimeout(r, 150));
+    await underWay(session);
 
     await session.prompt("second");
     const log = session.eventsSince(0);
@@ -157,7 +161,7 @@ describe("a prompt's promise", () => {
     const session = await sessions.open(provider, "/tmp");
     const off = autoApprove(session);
     void session.prompt("long");
-    await new Promise((r) => setTimeout(r, 150));
+    await underWay(session);
     const waiting = session.prompt("never sent");
     session.unqueue(0);
     await Promise.race([waiting, new Promise((_, rej) => setTimeout(() => rej(new Error("hung")), 2_000))]);
