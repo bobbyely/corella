@@ -6,6 +6,12 @@ All notable changes to Corella are written down here. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- **Error replies no longer carry stack traces.** An HTTP error's underlying
+  cause, which can include a stack trace, now goes to the server's log instead
+  of the reply. Chat errors still show their full details.
+
 ## [0.2.1] - 2026-11-23
 
 ### Fixed

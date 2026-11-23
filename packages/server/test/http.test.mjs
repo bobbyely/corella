@@ -47,6 +47,20 @@ after(async () => {
 
 const cookie = () => ({ cookie: `corella_token_${port}=${token}` });
 
+describe("an error reply", () => {
+  it("keeps the cause, which can hold a stack trace, out of the reply", async () => {
+    const res = await fetch(`${base}/api/providers/p`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...cookie() },
+      body: "{not json",
+    });
+    assert.equal(res.status, 400);
+    const { error } = await res.json();
+    assert.equal(error.code, "CONFIG_INVALID");
+    assert.equal(error.cause, undefined);
+  });
+});
+
 describe("the login token", () => {
   it("refuses the API, the page and a config change without it", async () => {
     const api = await fetch(`${base}/api/providers`);

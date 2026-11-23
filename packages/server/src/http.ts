@@ -545,5 +545,13 @@ function statusFor(error: KcError): number {
   return 500;
 }
 
-const sendError = (res: ServerResponse, status: number, error: KcError) =>
-  sendJson(res, status, { error });
+/**
+ * The cause can hold a stack trace, so it goes to the server's log and stays
+ * out of the reply. The web app never shows an HTTP error's cause; chat errors
+ * travel over the socket and keep theirs.
+ */
+const sendError = (res: ServerResponse, status: number, error: KcError) => {
+  const { cause, ...reply } = error;
+  if (cause) console.error(`[http] ${error.code}: ${error.message}\n${cause}`);
+  sendJson(res, status, { error: reply });
+};
