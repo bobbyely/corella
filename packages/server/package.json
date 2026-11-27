@@ -10,7 +10,7 @@
     "start": "node --no-warnings=ExperimentalWarning dist/index.js"
   },
   "dependencies": {
-    "@agentclientprotocol/sdk": "1.4.0",
+    "@agentclientprotocol/sdk": "2.9.1",
     "@corella/shared": "*",
     "ws": "8.23.0"
   }
