@@ -10,6 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@agentclientprotocol/sdk": "1.4.0"
+    "@agentclientprotocol/sdk": "2.9.1"
   }
 }
